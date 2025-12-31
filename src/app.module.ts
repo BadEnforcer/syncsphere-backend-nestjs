@@ -5,13 +5,15 @@ import {ConfigModule} from '@nestjs/config';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import {auth} from './auth'
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
     isGlobal: true,
   }),
     AuthModule.forRoot({auth}),
-    RedisModule],
+    RedisModule,
+    PrismaModule],
   controllers: [AppController],
   providers: [AppService],
 })

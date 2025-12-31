@@ -1,17 +1,16 @@
 import { betterAuth } from 'better-auth';
-// import { prismaAdapter } from "better-auth/adapters/prisma";
+import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin, bearer, jwt, lastLoginMethod, multiSession, openAPI, organization, phoneNumber, username } from 'better-auth/plugins';
-// import { PrismaClient } from "@prisma/client";
+import { PrismaService } from './prisma/prisma.service';
 
-// const prisma = new PrismaClient();
 
 export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
     },
-    // database: prismaAdapter(prisma, {
-    //     provider: "postgresql",
-    // })
+    database: prismaAdapter(PrismaService, {
+        provider: "postgresql",
+    }),
     plugins: [ 
         openAPI(),
         jwt(),
