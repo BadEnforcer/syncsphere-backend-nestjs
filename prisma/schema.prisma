@@ -7,15 +7,15 @@ datasource db {
 }
 
 model User {
-  id                  String       @id
+  id                  String        @id
   name                String
   email               String
-  emailVerified       Boolean      @default(false)
+  emailVerified       Boolean       @default(false)
   image               String?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
   role                String?
-  banned              Boolean?     @default(false)
+  banned              Boolean?      @default(false)
   banReason           String?
   banExpires          DateTime?
   username            String?
@@ -26,6 +26,8 @@ model User {
   accounts            Account[]
   members             Member[]
   invitations         Invitation[]
+  Participants        Participant[]
+  teamMemberships     TeamMember[]
 
   @@unique([email])
   @@unique([username])
@@ -136,4 +138,48 @@ model Invitation {
   @@index([organizationId])
   @@index([email])
   @@map("invitation")
+}
+
+model Conversation {
+  id             String        @id
+  organizationId String
+  name           String? // null for DMs
+  isGroup        Boolean       @default(false)
+  participants   Participant[]
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId]) // for fast filtering
+  @@map("conversation")
+}
+
+model Participant {
+  id             String       @id
+  userId         String
+  conversationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Team {
+  id          String  @id
+  name        String
+  logo        String?
+  description String?
+
+  members TeamMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model TeamMember {
+  id     String @id
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  role      String   @default("member")
+  createdAt DateTime @default(now())
 }

@@ -8,6 +8,7 @@ import {auth} from './auth'
 import { PrismaModule } from './prisma/prisma.module';
 import { OrganizationModule } from './organization/organization.module';
 import { CacheModule } from '@nestjs/cache-manager';
+import { TeamModule } from './team/team.module';
 
 @Module({
   imports: [ConfigModule.forRoot({
@@ -20,7 +21,8 @@ import { CacheModule } from '@nestjs/cache-manager';
     }),
     RedisModule,
     PrismaModule,
-    OrganizationModule],
+    OrganizationModule,
+    TeamModule],
   controllers: [AppController],
   providers: [AppService],
 })
