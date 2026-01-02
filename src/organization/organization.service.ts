@@ -3,11 +3,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class OrganizationService {
-    private readonly logger = new Logger(OrganizationService.name);
     constructor(private readonly prisma: PrismaService) { }
 
     async getAll() {
-        this.logger.log('Fetching all organizations');
+        const logger = new Logger(OrganizationService.name);
+        logger.log('Fetching all organizations');
         return this.prisma.organization.findMany();
     }
 }
