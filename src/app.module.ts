@@ -11,7 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
   imports: [ConfigModule.forRoot({
     isGlobal: true,
   }),
-    AuthModule.forRoot({auth}),
+    AuthModule.forRoot({auth, disableGlobalAuthGuard: true}),
     RedisModule,
     PrismaModule],
   controllers: [AppController],

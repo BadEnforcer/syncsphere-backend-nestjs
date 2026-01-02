@@ -1,14 +1,22 @@
+import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin, bearer, jwt, lastLoginMethod, multiSession, openAPI, organization, phoneNumber, username } from 'better-auth/plugins';
-import { PrismaService } from './prisma/prisma.service';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
+// Create a standalone PrismaClient instance for better-auth
+const connectionString = process.env.DATABASE_URL;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
     },
-    database: prismaAdapter(PrismaService, {
+    database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
     plugins: [ 
