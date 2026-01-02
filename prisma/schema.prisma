@@ -104,6 +104,7 @@ model Organization {
   metadata    String?
   members     Member[]
   invitations Invitation[]
+  teams       Team[]
 
   @@unique([slug])
   @@map("organization")
@@ -141,7 +142,7 @@ model Invitation {
 }
 
 model Conversation {
-  id             String        @id
+  id             String        @id @default(cuid())
   organizationId String
   name           String? // null for DMs
   isGroup        Boolean       @default(false)
@@ -153,27 +154,33 @@ model Conversation {
 }
 
 model Participant {
-  id             String       @id
+  id             String       @id @default(cuid())
   userId         String
   conversationId String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("participant")
 }
 
 model Team {
-  id          String  @id
-  name        String
-  logo        String?
-  description String?
+  id             String  @id @default(cuid())
+  name           String
+  logo           String?
+  description    String?
+  organizationId String
 
-  members TeamMember[]
+  members      TeamMember[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("team")
 }
 
 model TeamMember {
-  id     String @id
+  id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -182,4 +189,6 @@ model TeamMember {
 
   role      String   @default("member")
   createdAt DateTime @default(now())
+
+  @@map("team_member")
 }
