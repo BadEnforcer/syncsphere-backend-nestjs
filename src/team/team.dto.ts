@@ -7,7 +7,9 @@ export const CreateTeamSchema = z.object({
     initialMembers: z.array(z.object({
         userId: z.string(),
         role: z.enum(['admin', 'member']).optional().default('member'),
-    })).min(1),
+    })).min(1).refine((members) => members.some((m) => m.role === 'admin'), {
+        message: "At least one member must be an admin",
+    }),
 })
 
 export type CreateTeamInput = z.infer<typeof CreateTeamSchema>
