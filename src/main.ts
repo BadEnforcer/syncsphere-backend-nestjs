@@ -4,11 +4,23 @@ import { RedisIoAdapter } from './redis/adapter/adapter.service';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth';
 import { Request, Response } from 'express';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { cleanupOpenApiDoc } from 'nestjs-zod';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
   });
+
+  // Setup Swagger documentation
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('SyncSphere API')
+    .setDescription('SyncSphere Backend API Documentation')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs/swagger', app, cleanupOpenApiDoc(document));
 
   // cors
   app.enableCors({ origin: '*' });
