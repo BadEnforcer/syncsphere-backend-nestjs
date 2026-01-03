@@ -18,3 +18,7 @@ export const CreateTeamSchema = z.object({
 });
 
 export type CreateTeamInput = z.infer<typeof CreateTeamSchema>;
+
+export const AddMembersToTeamSchema = z.array(z.string()).min(1);
+
+export type AddMembersToTeamInput = z.infer<typeof AddMembersToTeamSchema>;
