@@ -1,14 +1,7 @@
 import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import {
-  admin,
-  bearer,
-  jwt,
-  multiSession,
-  openAPI,
-  organization,
-} from 'better-auth/plugins';
+import { admin, multiSession, openAPI } from 'better-auth/plugins';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';

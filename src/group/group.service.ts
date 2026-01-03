@@ -18,26 +18,15 @@ export class GroupService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createGroup(
-    orgId: string,
     input: GroupDto.CreateGroupInput,
     @CurrentUser() currentUser: AuthGuard.AuthUser,
   ) {
     try {
       this.logger.log('Creating group with data: ', input);
+      // TODO: make sure user is not blocked/banned
 
       return this.prisma.$transaction(async (tx) => {
         const groupId = v7();
-
-        const org = await tx.organization.findUnique({
-          where: {
-            id: orgId,
-          },
-        });
-
-        if (!org) {
-          this.logger.error(`Organization ${orgId} not found`);
-          throw new Error('Organization not found');
-        }
 
         const newGroup = await tx.group.create({
           data: {
@@ -45,7 +34,6 @@ export class GroupService {
             name: input.name,
             logo: input.logo,
             description: input.description,
-            organizationId: orgId,
           },
         });
 
@@ -55,7 +43,7 @@ export class GroupService {
             id: v7(),
             groupId: groupId,
             userId: currentUser.id,
-            role: 'admin',
+            role: 'ADMIN',
           },
         });
 
@@ -82,7 +70,6 @@ export class GroupService {
 
   @UseGuards(AuthGuard.RequiredAuthGuard)
   async addMembers(
-    orgId: string,
     groupId: string,
     input: GroupDto.AddMembersToGroupInput,
     @CurrentUser() currentUser: AuthGuard.AuthUser,
@@ -99,7 +86,6 @@ export class GroupService {
           tx.group.findUnique({
             where: {
               id: groupId,
-              organizationId: orgId,
             },
             include: {
               members: {
@@ -143,7 +129,7 @@ export class GroupService {
           throw new BadRequestException('Group not found');
         }
 
-        if (currentUserGroupMembership.role !== 'admin') {
+        if (currentUserGroupMembership.role !== 'ADMIN') {
           this.logger.debug(
             `The user ${currentUserId} does not have permission to group ${groupId}`,
           );

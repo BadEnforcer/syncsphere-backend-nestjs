@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GROUP_MEMBERSHIP } from '@prisma/client';
 
 export const CreateGroupSchema = z.object({
   name: z.string(),
@@ -8,7 +9,10 @@ export const CreateGroupSchema = z.object({
     .array(
       z.object({
         userId: z.string(),
-        role: z.enum(['admin', 'member']).optional().default('member'),
+        role: z
+          .enum(GROUP_MEMBERSHIP)
+          .optional()
+          .default(GROUP_MEMBERSHIP.MEMBER),
       }),
     )
     .optional(),
