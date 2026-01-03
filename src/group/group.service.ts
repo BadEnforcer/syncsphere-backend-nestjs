@@ -3,13 +3,11 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  UseGuards,
 } from '@nestjs/common';
 import * as GroupDto from './group.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { v7 } from 'uuid';
-import * as AuthGuard from '../auth/auth.guard';
-import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { type UserSession } from '@thallesp/nestjs-better-auth';
 import { GROUP_MEMBERSHIP } from '@prisma/client';
 
 @Injectable()
@@ -18,6 +16,11 @@ export class GroupService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Creates a new group with an associated conversation.
+   * The creator is added as an admin, and initial members are added as regular members.
+   * A conversation is created and all members are added as participants.
+   */
   async createGroup(input: GroupDto.CreateGroupInput, session: UserSession) {
     try {
       this.logger.log('Creating group with data: ', input);
@@ -25,7 +28,10 @@ export class GroupService {
 
       return this.prisma.$transaction(async (tx) => {
         const groupId = v7();
+        const conversationId = v7();
+        const creatorId = session.user.id;
 
+        // Create the group
         const newGroup = await tx.group.create({
           data: {
             id: groupId,
@@ -40,12 +46,16 @@ export class GroupService {
           data: {
             id: v7(),
             groupId: groupId,
-            userId: session.user.id,
+            userId: creatorId,
             role: GROUP_MEMBERSHIP.ADMIN,
           },
         });
 
+        // Collect all member user IDs (creator + initial members)
+        const allMemberIds = [creatorId];
+
         if (input.initialMembers && input.initialMembers.length > 0) {
+          // Add initial members to the group
           await tx.groupMember.createMany({
             data: input.initialMembers.map((member) => ({
               id: v7(),
@@ -54,18 +64,49 @@ export class GroupService {
               role: member.role,
             })),
           });
+
+          // Add initial member IDs to the list
+          allMemberIds.push(...input.initialMembers.map((m) => m.userId));
         }
+
+        // Create conversation linked to this group
+        await tx.conversation.create({
+          data: {
+            id: conversationId,
+            name: input.name,
+            isGroup: true,
+            groupId: groupId,
+          },
+        });
+
+        // Add all members as participants
+        await tx.participant.createMany({
+          data: allMemberIds.map((userId) => ({
+            id: v7(),
+            userId: userId,
+            conversationId: conversationId,
+          })),
+        });
+
+        this.logger.log(
+          `Created group ${groupId} with conversation ${conversationId} and ${allMemberIds.length} participants`,
+        );
 
         return {
           group: newGroup,
         };
       });
     } catch (err) {
+      this.logger.error('Failed to create group due to an error');
       this.logger.error(err);
       throw err;
     }
   }
 
+  /**
+   * Adds new members to a group and syncs them as participants in the conversation.
+   * Only admins can add members to the group.
+   */
   async addMembers(
     groupId: string,
     input: GroupDto.AddMembersToGroupInput,
@@ -75,10 +116,7 @@ export class GroupService {
       const currentUserId = session.user.id;
       // TODO: also check if all users are members of the organization
       return this.prisma.$transaction(async (tx) => {
-        // check group existence
-        // check if user is member of a group
-        // check if they have sufficient permissions
-        // check for existing members
+        // Fetch group with conversation and relevant members
         const [group, verifiedUsers] = await Promise.all([
           tx.group.findUnique({
             where: {
@@ -92,6 +130,7 @@ export class GroupService {
                   },
                 },
               },
+              conversation: true,
             },
           }),
           tx.user.findMany({
@@ -114,7 +153,6 @@ export class GroupService {
         this.logger.log(`Found ${group.members.length} members`);
 
         // Make sure the user has sufficient permissions and roles in the group
-
         const currentUserGroupMembership = group.members.find(
           (m) => m.userId === currentUserId,
         );
@@ -133,14 +171,21 @@ export class GroupService {
           throw new ForbiddenException('Insufficient permissions');
         }
 
-        // create memberships
+        // Filter to only verified users that aren't already members
+        const existingMemberIds = group.members.map((m) => m.userId);
         const verifiedUserIds = verifiedUsers.map((m) => m.id);
-        const _newUserIds = verifiedUserIds.filter(
-          (id) => id !== currentUserId,
+        const newUserIds = verifiedUserIds.filter(
+          (id) => id !== currentUserId && !existingMemberIds.includes(id),
         );
 
+        if (newUserIds.length === 0) {
+          this.logger.log('No new members to add');
+          return { memberships: [] };
+        }
+
+        // Create group memberships
         const memberships = await tx.groupMember.createManyAndReturn({
-          data: _newUserIds.map((member) => ({
+          data: newUserIds.map((member) => ({
             id: v7(),
             userId: member,
             groupId: groupId,
@@ -148,22 +193,42 @@ export class GroupService {
           })),
         });
 
+        // Add participants to conversation if it exists
+        if (group.conversation) {
+          await tx.participant.createMany({
+            data: newUserIds.map((userId) => ({
+              id: v7(),
+              userId: userId,
+              conversationId: group.conversation!.id,
+            })),
+          });
+
+          this.logger.log(
+            `Added ${newUserIds.length} participants to conversation ${group.conversation.id}`,
+          );
+        }
+
         return {
           memberships: memberships,
         };
       });
     } catch (e) {
+      this.logger.error('Failed to add members to group due to an error');
       this.logger.error(e);
       throw e;
     }
   }
 
+  /**
+   * Removes a member from a group and the associated conversation.
+   * Admins can remove any member, or a user can remove themselves.
+   */
   async removeMember(groupId: string, userId: string, session: UserSession) {
     try {
       const currentUserId = session.user.id;
 
       return this.prisma.$transaction(async (tx) => {
-        // Fetch group and relevant memberships (current user + target user)
+        // Fetch group with conversation and relevant memberships
         const group = await tx.group.findUnique({
           where: {
             id: groupId,
@@ -176,6 +241,7 @@ export class GroupService {
                 },
               },
             },
+            conversation: true,
           },
         });
 
@@ -217,18 +283,33 @@ export class GroupService {
           throw new ForbiddenException('Insufficient permissions');
         }
 
-        // Perform deletion
+        // Delete group membership
         await tx.groupMember.delete({
           where: {
             id: memberToRemove.id,
           },
         });
 
+        // Remove participant from conversation if it exists
+        if (group.conversation) {
+          await tx.participant.deleteMany({
+            where: {
+              userId: userId,
+              conversationId: group.conversation.id,
+            },
+          });
+
+          this.logger.log(
+            `Removed participant ${userId} from conversation ${group.conversation.id}`,
+          );
+        }
+
         return {
           success: true,
         };
       });
     } catch (e) {
+      this.logger.error('Failed to remove member from group due to an error');
       this.logger.error(e);
       throw e;
     }
@@ -457,5 +538,4 @@ export class GroupService {
       throw e;
     }
   }
-
 }

@@ -77,14 +77,15 @@ model Verification {
 }
 
 model Conversation {
-  id             String        @id @default(cuid())
-  organizationId String
-  name           String? // null for DMs
-  isGroup        Boolean       @default(false)
-  participants   Participant[]
-  createdAt      DateTime      @default(now())
+  id           String        @id @default(cuid())
+  name         String? // null for DMs
+  isGroup      Boolean       @default(false)
+  participants Participant[]
+  createdAt    DateTime      @default(now())
 
-  @@index([organizationId]) // for fast filtering
+  groupId String? @unique
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
   @@map("conversation")
 }
 
@@ -104,7 +105,8 @@ model Group {
   logo        String?
   description String?
 
-  members GroupMember[]
+  members      GroupMember[]
+  conversation Conversation?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
