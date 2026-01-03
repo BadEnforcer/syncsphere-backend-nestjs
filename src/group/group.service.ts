@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   UseGuards,
@@ -16,7 +17,11 @@ export class GroupService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createGroup(orgId: string, input: GroupDto.CreateGroupInput) {
+  async createGroup(
+    orgId: string,
+    input: GroupDto.CreateGroupInput,
+    @CurrentUser() currentUser: AuthGuard.AuthUser,
+  ) {
     try {
       this.logger.log('Creating group with data: ', input);
 
@@ -44,18 +49,29 @@ export class GroupService {
           },
         });
 
-        const newMembers = await tx.groupMember.createMany({
-          data: input.initialMembers.map((member) => ({
+        // Add the current user as an admin
+        await tx.groupMember.create({
+          data: {
             id: v7(),
             groupId: groupId,
-            userId: member.userId,
-            role: member.role,
-          })),
+            userId: currentUser.id,
+            role: 'admin',
+          },
         });
+
+        if (input.initialMembers && input.initialMembers.length > 0) {
+          await tx.groupMember.createMany({
+            data: input.initialMembers.map((member) => ({
+              id: v7(),
+              groupId: groupId,
+              userId: member.userId,
+              role: member.role,
+            })),
+          });
+        }
 
         return {
           group: newGroup,
-          members: newMembers,
         };
       });
     } catch (err) {
@@ -73,26 +89,39 @@ export class GroupService {
   ) {
     try {
       const currentUserId = currentUser.id;
-
+      // TODO: also check if all users are members of the organization
       return this.prisma.$transaction(async (tx) => {
         // check group existence
         // check if user is member of a group
         // check if they have sufficient permissions
         // check for existing members
-        const group = await tx.group.findUnique({
-          where: {
-            id: groupId,
-          },
-          include: {
-            members: {
-              where: {
-                userId: {
-                  in: [...input, currentUserId], // find existing members + current user's membership
+        const [group, verifiedUsers] = await Promise.all([
+          tx.group.findUnique({
+            where: {
+              id: groupId,
+              organizationId: orgId,
+            },
+            include: {
+              members: {
+                where: {
+                  userId: {
+                    in: [...input, currentUserId], // find existing members + current user's membership
+                  },
                 },
               },
             },
-          },
-        });
+          }),
+          tx.user.findMany({
+            where: {
+              id: {
+                in: [...input, currentUserId],
+              },
+            },
+            select: {
+              id: true,
+            },
+          }),
+        ]);
 
         if (!group) {
           this.logger.log('Group not found');
@@ -101,12 +130,44 @@ export class GroupService {
 
         this.logger.log(`Found ${group.members.length} members`);
 
+        // Make sure the user has sufficient permissions and roles in the group
+
         const currentUserGroupMembership = group.members.find(
           (m) => m.userId === currentUserId,
         );
 
         if (!currentUserGroupMembership) {
+          this.logger.warn(
+            `User ${currentUserId} is not a member of group ${groupId}`,
+          );
+          throw new BadRequestException('Group not found');
         }
+
+        if (currentUserGroupMembership.role !== 'admin') {
+          this.logger.debug(
+            `The user ${currentUserId} does not have permission to group ${groupId}`,
+          );
+          throw new ForbiddenException('Insufficient permissions');
+        }
+
+        // create memberships
+        const verifiedUserIds = verifiedUsers.map((m) => m.id);
+        const _newUserIds = verifiedUserIds.filter(
+          (id) => id !== currentUserId,
+        );
+
+        const memberships = await tx.groupMember.createManyAndReturn({
+          data: _newUserIds.map((member) => ({
+            id: v7(),
+            userId: member,
+            groupId: groupId,
+            role: 'member',
+          })),
+        });
+
+        return {
+          memberships: memberships,
+        };
       });
     } catch (e) {
       this.logger.error(e);

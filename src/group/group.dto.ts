@@ -11,10 +11,7 @@ export const CreateGroupSchema = z.object({
         role: z.enum(['admin', 'member']).optional().default('member'),
       }),
     )
-    .min(1)
-    .refine((members) => members.some((m) => m.role === 'admin'), {
-      message: 'At least one member must be an admin',
-    }),
+    .optional(),
 });
 
 export type CreateGroupInput = z.infer<typeof CreateGroupSchema>;
