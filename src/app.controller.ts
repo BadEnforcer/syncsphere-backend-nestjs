@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { AppService } from './app.service';
-import { RequiredAuthGuard, OptionalAuthGuard } from './auth/auth.guard';
+import { RequiredAuthGuard } from './auth/auth.guard';
 
 @Controller()
 export class AppController {
@@ -8,9 +8,10 @@ export class AppController {
 
   @UseGuards(RequiredAuthGuard)
   @Get('/test')
-    test(@Request() req) {
+  test(@Request() req) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-member-access
     return req['user'];
-    }
+  }
 
   @Get()
   getHello(): string {

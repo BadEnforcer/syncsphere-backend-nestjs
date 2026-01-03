@@ -1,5 +1,10 @@
 // auth.guard.ts
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
 import * as jose from 'jose';
@@ -69,7 +74,9 @@ async function verifyJwtToken(token: string): Promise<AuthUser | null> {
 /**
  * Try to get session from cookies using better-auth
  */
-async function getSessionFromCookies(req: Request): Promise<AuthSession | null> {
+async function getSessionFromCookies(
+  req: Request,
+): Promise<AuthSession | null> {
   try {
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
@@ -112,9 +119,9 @@ async function authenticate(req: Request): Promise<AuthSession | null> {
 export class RequiredAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
-    
+
     const authResult = await authenticate(req);
-    
+
     if (!authResult) {
       throw new UnauthorizedException('Authentication required');
     }
@@ -135,9 +142,9 @@ export class RequiredAuthGuard implements CanActivate {
 export class OptionalAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
-    
+
     const authResult = await authenticate(req);
-    
+
     // Always allow access, but attach user if authenticated
     if (authResult) {
       req['user'] = authResult.user;

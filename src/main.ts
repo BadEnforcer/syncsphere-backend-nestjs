@@ -11,7 +11,7 @@ async function bootstrap() {
   });
 
   // cors
-  app.enableCors({origin: '*'})
+  app.enableCors({ origin: '*' });
 
   // Register Better Auth handler for all auth routes
   const expressApp = app.getHttpAdapter().getInstance();
