@@ -22,6 +22,7 @@ model User {
   accounts      Account[]
   participants  Participant[]
   groupMembers  GroupMember[]
+  sentMessages  Message[]
 
   @@unique([email])
   @@map("user")
@@ -81,6 +82,7 @@ model Conversation {
   name         String? // null for DMs
   isGroup      Boolean       @default(false)
   participants Participant[]
+  messages     Message[]
   createdAt    DateTime      @default(now())
 
   groupId String? @unique
@@ -96,6 +98,14 @@ model Participant {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
+  // Read receipts: timestamp of when user last viewed/read this conversation
+  // Messages with timestamp > lastReadAt are considered unread for this user
+  lastReadAt DateTime @default(now()) @map("last_read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, conversationId]) // A user can only be a participant once per conversation
+  @@index([conversationId])
   @@map("participant")
 }
 
@@ -112,6 +122,29 @@ model Group {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@map("group")
+}
+
+// Defines the type of content a message contains
+enum MessageContentType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  STICKER
+  CONTACT
+  LOCATION
+  REACTION
+  SYSTEM // For system-generated messages like "User joined the group"
+  CALL // For call-related messages
+  UNKNOWN
+}
+
+// Tracks the action performed on a message (for sync/history purposes)
+enum MessageAction {
+  INSERT
+  UPDATE
+  DELETE
 }
 
 enum GROUP_MEMBERSHIP {
@@ -131,4 +164,51 @@ model GroupMember {
   createdAt DateTime         @default(now())
 
   @@map("group_member")
+}
+
+model Message {
+  id      String @id @default(cuid())
+  // Unique event ID for idempotency and sync (e.g., client-generated UUID)
+  eventId String @unique @map("event_id")
+
+  // When the message was originally sent/created by the client
+  timestamp DateTime @map("timestamp")
+
+  // Type of content this message contains
+  contentType MessageContentType @default(TEXT) @map("content_type")
+
+  // Structured content data (e.g., { url, thumbnail, duration } for media)
+  content Json? @map("content")
+
+  // Additional metadata (e.g., forwarded info, link previews)
+  metadata Json? @map("metadata")
+
+  // Plain text message content (for TEXT type or caption for media)
+  message String? @map("message")
+
+  // Tracks message lifecycle: INSERT, UPDATE, or DELETE
+  action MessageAction @default(INSERT) @map("action")
+
+  // Message sender
+  senderId String @map("sender_id")
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  // Conversation this message belongs to (works for both 1-1 and group chats)
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Reply/thread support - references the parent message if this is a reply
+  replyToId String?   @map("reply_to_id")
+  replyTo   Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageReplies")
+
+  // Timestamps for message lifecycle
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") // Soft delete timestamp
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([timestamp])
+  @@map("message")
 }
