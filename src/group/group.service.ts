@@ -697,6 +697,8 @@ export class GroupService {
                 sender: conversation.messages[0].sender,
               }
             : null;
+        
+        console.assert(group.conversation?.id, `Conversation id is missing for group ${group.id}`);
 
         return {
           id: group.id,
@@ -706,6 +708,7 @@ export class GroupService {
           memberCount: group._count.members,
           myRole: membership.role,
           createdAt: group.createdAt,
+          conversationId: group.conversation?.id || "", // do not fail silently
           ...(includeLatestMessage && { latestMessage }),
         };
       });

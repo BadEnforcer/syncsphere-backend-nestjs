@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { GroupModule } from './group/group.module';
 import { ZodValidationPipe, ZodSerializerInterceptor } from 'nestjs-zod';
+import { ChatGateway } from './chat/chat.gateway';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ZodValidationPipe, ZodSerializerInterceptor } from 'nestjs-zod';
     AppService,
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
+    ChatGateway,
   ],
 })
 export class AppModule {}
