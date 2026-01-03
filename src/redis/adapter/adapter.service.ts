@@ -32,7 +32,7 @@ export class RedisIoAdapter extends IoAdapter {
   createIOServer(port: number, options?: ServerOptions): any {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const server = super.createIOServer(port, options);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
     server.adapter(this.adapterConstructor);
     return server;
   }

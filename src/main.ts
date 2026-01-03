@@ -14,8 +14,10 @@ async function bootstrap() {
   app.enableCors({ origin: '*' });
 
   // Register Better Auth handler for all auth routes
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const expressApp = app.getHttpAdapter().getInstance();
   const handler = toNodeHandler(auth);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
   expressApp.all('/api/auth/*path', (req: Request, res: Response) => {
     return handler(req, res);
   });

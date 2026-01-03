@@ -40,6 +40,7 @@ async function verifyJwtToken(token: string): Promise<AuthUser | null> {
     if (!jwksCache) {
       const jwksUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000';
       const response = await fetch(`${jwksUrl}/api/auth/jwks`);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       jwksCache = await response.json();
     }
 
