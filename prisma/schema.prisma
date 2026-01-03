@@ -7,46 +7,37 @@ datasource db {
 }
 
 model User {
-  id                  String        @id
-  name                String
-  email               String
-  emailVerified       Boolean       @default(false)
-  image               String?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  role                String?
-  banned              Boolean?      @default(false)
-  banReason           String?
-  banExpires          DateTime?
-  username            String?
-  displayUsername     String?
-  phoneNumber         String?
-  phoneNumberVerified Boolean?
-  sessions            Session[]
-  accounts            Account[]
-  members             Member[]
-  invitations         Invitation[]
-  Participants        Participant[]
-  groupMemberships    GroupMember[]
+  id            String        @id
+  name          String
+  email         String
+  emailVerified Boolean       @default(false)
+  image         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  role          String?
+  banned        Boolean?      @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+  participants  Participant[]
+  groupMembers  GroupMember[]
 
   @@unique([email])
-  @@unique([username])
-  @@unique([phoneNumber])
   @@map("user")
 }
 
 model Session {
-  id                   String   @id
-  expiresAt            DateTime
-  token                String
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  ipAddress            String?
-  userAgent            String?
-  userId               String
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  impersonatedBy       String?
-  activeOrganizationId String?
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
 
   @@unique([token])
   @@index([userId])
@@ -85,62 +76,6 @@ model Verification {
   @@map("verification")
 }
 
-model Jwks {
-  id         String    @id
-  publicKey  String
-  privateKey String
-  createdAt  DateTime
-  expiresAt  DateTime?
-
-  @@map("jwks")
-}
-
-model Organization {
-  id          String       @id
-  name        String
-  slug        String
-  logo        String?
-  createdAt   DateTime
-  metadata    String?
-  members     Member[]
-  invitations Invitation[]
-  groups      Group[]
-
-  @@unique([slug])
-  @@map("organization")
-}
-
-model Member {
-  id             String       @id
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role           String       @default("member")
-  createdAt      DateTime
-
-  @@index([organizationId])
-  @@index([userId])
-  @@map("member")
-}
-
-model Invitation {
-  id             String       @id
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  email          String
-  role           String?
-  status         String       @default("pending")
-  expiresAt      DateTime
-  createdAt      DateTime     @default(now())
-  inviterId      String
-  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
-
-  @@index([organizationId])
-  @@index([email])
-  @@map("invitation")
-}
-
 model Conversation {
   id             String        @id @default(cuid())
   organizationId String
@@ -164,19 +99,22 @@ model Participant {
 }
 
 model Group {
-  id             String  @id @default(cuid())
-  name           String
-  logo           String?
-  description    String?
-  organizationId String
+  id          String  @id @default(cuid())
+  name        String
+  logo        String?
+  description String?
 
-  members      GroupMember[]
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members GroupMember[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   @@map("group")
+}
+
+enum GROUP_MEMBERSHIP {
+  ADMIN
+  MEMBER
 }
 
 model GroupMember {
@@ -187,8 +125,8 @@ model GroupMember {
   groupId String
   group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
-  role      String   @default("member")
-  createdAt DateTime @default(now())
+  role      GROUP_MEMBERSHIP @default(MEMBER)
+  createdAt DateTime         @default(now())
 
   @@map("group_member")
 }
