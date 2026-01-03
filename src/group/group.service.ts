@@ -550,4 +550,73 @@ export class GroupService {
       throw e;
     }
   }
+
+  /**
+   * Disbands (deletes) a group and all associated data.
+   * Only admins can disband a group.
+   * Cascade deletes will clean up: conversation, participants, and group members.
+   */
+  async disbandGroup(groupId: string, session: UserSession) {
+    try {
+      const currentUserId = session.user.id;
+
+      return this.prisma.$transaction(async (tx) => {
+        // Fetch group with the current user's membership
+        const group = await tx.group.findUnique({
+          where: {
+            id: groupId,
+          },
+          include: {
+            members: {
+              where: {
+                userId: currentUserId,
+              },
+            },
+          },
+        });
+
+        if (!group) {
+          this.logger.log('Group not found');
+          throw new BadRequestException('Group not found');
+        }
+
+        const currentUserMembership = group.members.find(
+          (m) => m.userId === currentUserId,
+        );
+
+        // Ensure current user is a member of the group
+        if (!currentUserMembership) {
+          this.logger.warn(
+            `User ${currentUserId} is not a member of group ${groupId}`,
+          );
+          throw new BadRequestException('Group not found');
+        }
+
+        // Only admins can disband the group
+        if (currentUserMembership.role !== GROUP_MEMBERSHIP.ADMIN) {
+          this.logger.debug(
+            `User ${currentUserId} does not have permission to disband group ${groupId}`,
+          );
+          throw new ForbiddenException('Insufficient permissions');
+        }
+
+        // Delete the group - cascade will clean up conversation, participants, and members
+        await tx.group.delete({
+          where: {
+            id: groupId,
+          },
+        });
+
+        this.logger.log(`Group ${groupId} disbanded by ${currentUserId}`);
+
+        return {
+          success: true,
+        };
+      });
+    } catch (e) {
+      this.logger.error('Failed to disband group due to an error');
+      this.logger.error(e);
+      throw e;
+    }
+  }
 }

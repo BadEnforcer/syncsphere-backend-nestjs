@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, Patch } from '@nestjs/common';
+import { Controller, Post, Body, Param, Patch, Delete } from '@nestjs/common';
 import { GroupService } from './group.service';
 import * as GroupDto from './group.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -54,5 +54,13 @@ export class GroupController {
     @Session() currentUser: UserSession,
   ) {
     return this.groupService.demoteFromAdmin(groupId, input, currentUser);
+  }
+
+  @Delete('/:groupId')
+  async disbandGroup(
+    @Param('groupId') groupId: string,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.groupService.disbandGroup(groupId, currentUser);
   }
 }

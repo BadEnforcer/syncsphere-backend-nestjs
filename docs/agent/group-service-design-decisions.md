@@ -71,3 +71,21 @@ This document records key design decisions for the Group module.
 - If they're the only admin, throws `BadRequestException('Cannot leave group as the last admin. Please assign another admin first.')`
 - Query fetches all members to count admins
 
+---
+
+## 6. Disband Group (Delete)
+
+### Decision: Rely on cascade deletes for cleanup
+**Date:** 2026-01-03
+
+**Reason:** Schema already has `onDelete: Cascade` configured. Simpler to leverage database-level cascades than manual deletion.
+
+**Cascade chain:**
+- `Group` deletion → `Conversation` (via `groupId` FK)
+- `Conversation` deletion → `Participant[]`
+- `Group` deletion → `GroupMember[]`
+
+**Implementation:**
+- `disbandGroup()` only deletes the `Group` record
+- Only admins can disband a group
+- Endpoint: `DELETE /group/:groupId`
