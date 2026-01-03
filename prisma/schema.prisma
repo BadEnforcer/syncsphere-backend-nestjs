@@ -167,9 +167,7 @@ model GroupMember {
 }
 
 model Message {
-  id      String @id @default(cuid())
-  // Unique event ID for idempotency and sync (e.g., client-generated UUID)
-  eventId String @unique @map("event_id")
+  id String @id @default(cuid())
 
   // When the message was originally sent/created by the client
   timestamp DateTime @map("timestamp")

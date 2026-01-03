@@ -65,3 +65,19 @@ export const DemoteMemberSchema = z.object({
 export class DemoteMemberDto extends createZodDto(DemoteMemberSchema) {}
 export type DemoteMemberInput = z.infer<typeof DemoteMemberSchema>;
 
+/**
+ * Schema for getting user groups query params.
+ * Controls whether to include the latest message in the response.
+ */
+export const GetUserGroupsQuerySchema = z.object({
+  includeMessages: z
+    .string()
+    .optional()
+    .transform((val) => val === 'true'),
+});
+
+export class GetUserGroupsQueryDto extends createZodDto(
+  GetUserGroupsQuerySchema,
+) {}
+export type GetUserGroupsQueryInput = z.infer<typeof GetUserGroupsQuerySchema>;
+

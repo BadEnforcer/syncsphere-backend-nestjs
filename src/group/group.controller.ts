@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Param, Patch, Delete } from '@nestjs/common';
-import { ApiTags, ApiParam, ApiCookieAuth } from '@nestjs/swagger';
+import { Controller, Post, Body, Param, Patch, Delete, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiParam, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
 import { GroupService } from './group.service';
 import * as GroupDto from './group.dto';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
@@ -13,6 +13,24 @@ import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 @Controller('group')
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
+
+  /**
+   * Returns all groups the current user is a member of.
+   * Optionally includes the latest message when includeMessages=true.
+   */
+  @Get('/my-groups')
+  @ApiQuery({
+    name: 'includeMessages',
+    required: false,
+    type: Boolean,
+    description: 'Include the latest message from each group (default: false)',
+  })
+  async getUserGroups(
+    @Query() query: GroupDto.GetUserGroupsQueryDto,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.groupService.getUserGroups(currentUser, query.includeMessages);
+  }
 
   /**
    * Creates a new group with optional initial members.

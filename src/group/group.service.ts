@@ -619,4 +619,106 @@ export class GroupService {
       throw e;
     }
   }
+
+  /**
+   * Retrieves all groups the current user is a member of.
+   * Optionally includes the latest message from each group's conversation.
+   * Returns group details along with member count and user's role.
+   */
+  async getUserGroups(session: UserSession, includeLatestMessage: boolean = false) {
+    try {
+      const currentUserId = session.user.id;
+
+      // Fetch all group memberships for the current user with group details
+      const memberships = await this.prisma.groupMember.findMany({
+        where: {
+          userId: currentUserId,
+        },
+        include: {
+          group: {
+            include: {
+              _count: {
+                select: { members: true },
+              },
+              conversation: includeLatestMessage
+                ? {
+                    include: {
+                      messages: {
+                        orderBy: { timestamp: 'desc' },
+                        take: 1,
+                        include: {
+                          sender: {
+                            select: {
+                              id: true,
+                              name: true,
+                              image: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  }
+                : false,
+            },
+          },
+        },
+        orderBy: {
+          group: {
+            updatedAt: 'desc',
+          },
+        },
+      });
+
+      // Transform the data into a cleaner response format
+      const groups = memberships.map((membership) => {
+        const group = membership.group;
+
+        // Extract latest message if included and available
+        // Type assertion needed due to Prisma's conditional include type narrowing
+        const conversation = group.conversation as
+          | (typeof group.conversation & {
+              messages?: Array<{
+                id: string;
+                message: string | null;
+                contentType: string;
+                timestamp: Date;
+                sender: { id: string; name: string; image: string | null };
+              }>;
+            })
+          | null;
+
+        const latestMessage =
+          includeLatestMessage && conversation?.messages?.[0]
+            ? {
+                id: conversation.messages[0].id,
+                message: conversation.messages[0].message,
+                contentType: conversation.messages[0].contentType,
+                timestamp: conversation.messages[0].timestamp,
+                sender: conversation.messages[0].sender,
+              }
+            : null;
+
+        return {
+          id: group.id,
+          name: group.name,
+          logo: group.logo,
+          description: group.description,
+          memberCount: group._count.members,
+          myRole: membership.role,
+          createdAt: group.createdAt,
+          ...(includeLatestMessage && { latestMessage }),
+        };
+      });
+
+      this.logger.log(
+        `Retrieved ${groups.length} groups for user ${currentUserId}`,
+      );
+
+      return { groups };
+    } catch (e) {
+      this.logger.error('Failed to get user groups due to an error');
+      this.logger.error(e);
+      throw e;
+    }
+  }
 }
