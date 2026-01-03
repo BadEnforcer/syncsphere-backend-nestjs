@@ -23,3 +23,21 @@ export type CreateGroupInput = z.infer<typeof CreateGroupSchema>;
 export const AddMembersToGroupSchema = z.array(z.string()).min(1);
 
 export type AddMembersToGroupInput = z.infer<typeof AddMembersToGroupSchema>;
+
+export const RemoveMembersFromGroupSchema = z.array(z.string()).min(1);
+
+export type RemoveMembersFromGroupInput = z.infer<
+  typeof RemoveMembersFromGroupSchema
+>;
+
+export const PromoteMemberSchema = z.object({
+  userId: z.string(),
+});
+
+export type PromoteMemberInput = z.infer<typeof PromoteMemberSchema>;
+
+export const DemoteMemberSchema = z.object({
+  userId: z.string(),
+});
+
+export type DemoteMemberInput = z.infer<typeof DemoteMemberSchema>;

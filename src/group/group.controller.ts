@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Param, Patch } from '@nestjs/common';
 import { GroupService } from './group.service';
 import * as GroupDto from './group.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -19,10 +19,40 @@ export class GroupController {
 
   @Post('/:groupId/add-members')
   async addMembers(
-    groupId: string,
+    @Param('groupId') groupId: string,
+    @Body(new ZodValidationPipe(GroupDto.AddMembersToGroupSchema))
     input: GroupDto.AddMembersToGroupInput,
     @Session() currentUser: UserSession,
   ) {
     return this.groupService.addMembers(groupId, input, currentUser);
+  }
+
+  @Post('/:groupId/remove-member/:userId')
+  async removeMember(
+    @Param('groupId') groupId: string,
+    @Param('userId') userId: string,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.groupService.removeMember(groupId, userId, currentUser);
+  }
+
+  @Patch('/:groupId/members/promote')
+  async promoteToAdmin(
+    @Param('groupId') groupId: string,
+    @Body(new ZodValidationPipe(GroupDto.PromoteMemberSchema))
+    input: GroupDto.PromoteMemberInput,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.groupService.promoteToAdmin(groupId, input, currentUser);
+  }
+
+  @Patch('/:groupId/members/demote')
+  async demoteFromAdmin(
+    @Param('groupId') groupId: string,
+    @Body(new ZodValidationPipe(GroupDto.PromoteMemberSchema))
+    input: GroupDto.PromoteMemberInput,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.groupService.demoteFromAdmin(groupId, input, currentUser);
   }
 }
