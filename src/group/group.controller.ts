@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Param, Patch, Delete } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiParam, ApiCookieAuth } from '@nestjs/swagger';
 import { GroupService } from './group.service';
 import * as GroupDto from './group.dto';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
@@ -9,7 +9,7 @@ import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
  * All endpoints require authentication.
  */
 @ApiTags('Group')
-@ApiBearerAuth()
+@ApiCookieAuth('better-auth.session_token')
 @Controller('group')
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}

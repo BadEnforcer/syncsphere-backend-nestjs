@@ -20,7 +20,9 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs/swagger', app, cleanupOpenApiDoc(document));
+  SwaggerModule.setup('docs/swagger', app, cleanupOpenApiDoc(document), {
+    jsonDocumentUrl: 'docs/swagger/json',
+  });
 
   // cors
   app.enableCors({ origin: '*' });

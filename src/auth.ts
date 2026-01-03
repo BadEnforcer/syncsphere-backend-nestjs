@@ -20,5 +20,11 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
-  plugins: [openAPI(), multiSession(), admin()],
+  plugins: [
+    openAPI(),
+    multiSession(),
+    admin({
+      adminUserIds: ['leNFRr91qu2HZWJptJ2Ijoaihp4uXk8b'],
+    }),
+  ],
 });
