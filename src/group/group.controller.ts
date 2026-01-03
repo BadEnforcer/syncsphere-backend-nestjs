@@ -1,11 +1,9 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { GroupService } from './group.service';
 import * as GroupDto from './group.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { CurrentUser } from '../auth/auth.decorators';
-import * as AuthGuard from '../auth/auth.guard';
+import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 
-@UseGuards(AuthGuard.RequiredAuthGuard)
 @Controller('group')
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
@@ -14,7 +12,7 @@ export class GroupController {
   async createGroup(
     @Body(new ZodValidationPipe(GroupDto.CreateGroupSchema))
     input: GroupDto.CreateGroupInput,
-    @CurrentUser() currentUser: AuthGuard.AuthUser,
+    @Session() currentUser: UserSession,
   ) {
     return this.groupService.createGroup(input, currentUser);
   }
@@ -23,7 +21,7 @@ export class GroupController {
   async addMembers(
     groupId: string,
     input: GroupDto.AddMembersToGroupInput,
-    @CurrentUser() currentUser: AuthGuard.AuthUser,
+    @Session() currentUser: UserSession,
   ) {
     return this.groupService.addMembers(groupId, input, currentUser);
   }

@@ -6,7 +6,6 @@ import { RedisModule } from './redis/redis.module';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth';
 import { PrismaModule } from './prisma/prisma.module';
-import { OrganizationModule } from './organization/organization.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { GroupModule } from './group/group.module';
 
@@ -15,14 +14,13 @@ import { GroupModule } from './group/group.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    AuthModule.forRoot({ auth, disableGlobalAuthGuard: true }),
+    AuthModule.forRoot({ auth, disableGlobalAuthGuard: false }),
     CacheModule.register({
       isGlobal: true,
       ttl: 5000, // ms
     }),
     RedisModule,
     PrismaModule,
-    OrganizationModule,
     GroupModule,
   ],
   controllers: [AppController],

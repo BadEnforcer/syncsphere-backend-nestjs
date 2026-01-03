@@ -8,8 +8,9 @@ import {
 import * as GroupDto from './group.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { v7 } from 'uuid';
-import { CurrentUser } from '../auth/auth.decorators';
 import * as AuthGuard from '../auth/auth.guard';
+import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { GROUP_MEMBERSHIP } from '@prisma/client';
 
 @Injectable()
 export class GroupService {
@@ -17,10 +18,7 @@ export class GroupService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createGroup(
-    input: GroupDto.CreateGroupInput,
-    @CurrentUser() currentUser: AuthGuard.AuthUser,
-  ) {
+  async createGroup(input: GroupDto.CreateGroupInput, session: UserSession) {
     try {
       this.logger.log('Creating group with data: ', input);
       // TODO: make sure user is not blocked/banned
@@ -42,8 +40,8 @@ export class GroupService {
           data: {
             id: v7(),
             groupId: groupId,
-            userId: currentUser.id,
-            role: 'ADMIN',
+            userId: session.user.id,
+            role: GROUP_MEMBERSHIP.ADMIN,
           },
         });
 
@@ -72,10 +70,10 @@ export class GroupService {
   async addMembers(
     groupId: string,
     input: GroupDto.AddMembersToGroupInput,
-    @CurrentUser() currentUser: AuthGuard.AuthUser,
+    @Session() session: UserSession,
   ) {
     try {
-      const currentUserId = currentUser.id;
+      const currentUserId = session.user.id;
       // TODO: also check if all users are members of the organization
       return this.prisma.$transaction(async (tx) => {
         // check group existence
@@ -129,7 +127,7 @@ export class GroupService {
           throw new BadRequestException('Group not found');
         }
 
-        if (currentUserGroupMembership.role !== 'ADMIN') {
+        if (currentUserGroupMembership.role !== GROUP_MEMBERSHIP.ADMIN) {
           this.logger.debug(
             `The user ${currentUserId} does not have permission to group ${groupId}`,
           );
@@ -147,7 +145,7 @@ export class GroupService {
             id: v7(),
             userId: member,
             groupId: groupId,
-            role: 'member',
+            role: GROUP_MEMBERSHIP.MEMBER,
           })),
         });
 
