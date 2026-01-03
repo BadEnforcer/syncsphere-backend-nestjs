@@ -27,7 +27,7 @@ model User {
   members             Member[]
   invitations         Invitation[]
   Participants        Participant[]
-  teamMemberships     TeamMember[]
+  groupMemberships    GroupMember[]
 
   @@unique([email])
   @@unique([username])
@@ -104,7 +104,7 @@ model Organization {
   metadata    String?
   members     Member[]
   invitations Invitation[]
-  teams       Team[]
+  groups      Group[]
 
   @@unique([slug])
   @@map("organization")
@@ -163,32 +163,32 @@ model Participant {
   @@map("participant")
 }
 
-model Team {
+model Group {
   id             String  @id @default(cuid())
   name           String
   logo           String?
   description    String?
   organizationId String
 
-  members      TeamMember[]
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      GroupMember[]
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  @@map("team")
+  @@map("group")
 }
 
-model TeamMember {
+model GroupMember {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  teamId String
-  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   role      String   @default("member")
   createdAt DateTime @default(now())
 
-  @@map("team_member")
+  @@map("group_member")
 }

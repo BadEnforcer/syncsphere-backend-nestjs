@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const CreateTeamSchema = z.object({
+export const CreateGroupSchema = z.object({
   name: z.string(),
   logo: z.string().optional(),
   description: z.string().optional(),
@@ -17,8 +17,8 @@ export const CreateTeamSchema = z.object({
     }),
 });
 
-export type CreateTeamInput = z.infer<typeof CreateTeamSchema>;
+export type CreateGroupInput = z.infer<typeof CreateGroupSchema>;
 
-export const AddMembersToTeamSchema = z.array(z.string()).min(1);
+export const AddMembersToGroupSchema = z.array(z.string()).min(1);
 
-export type AddMembersToTeamInput = z.infer<typeof AddMembersToTeamSchema>;
+export type AddMembersToGroupInput = z.infer<typeof AddMembersToGroupSchema>;

@@ -4,24 +4,24 @@ import {
   Logger,
   UseGuards,
 } from '@nestjs/common';
-import * as TeamDto from './team.dto';
+import * as GroupDto from './group.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { v7 } from 'uuid';
 import { CurrentUser } from '../auth/auth.decorators';
 import * as AuthGuard from '../auth/auth.guard';
 
 @Injectable()
-export class TeamService {
-  private readonly logger = new Logger(TeamService.name);
+export class GroupService {
+  private readonly logger = new Logger(GroupService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createTeam(orgId: string, input: TeamDto.CreateTeamInput) {
+  async createGroup(orgId: string, input: GroupDto.CreateGroupInput) {
     try {
-      this.logger.log('Creating team with data: ', input);
+      this.logger.log('Creating group with data: ', input);
 
       return this.prisma.$transaction(async (tx) => {
-        const teamId = v7();
+        const groupId = v7();
 
         const org = await tx.organization.findUnique({
           where: {
@@ -34,9 +34,9 @@ export class TeamService {
           throw new Error('Organization not found');
         }
 
-        const newTeam = await tx.team.create({
+        const newGroup = await tx.group.create({
           data: {
-            id: teamId,
+            id: groupId,
             name: input.name,
             logo: input.logo,
             description: input.description,
@@ -44,17 +44,17 @@ export class TeamService {
           },
         });
 
-        const newMembers = await tx.teamMember.createMany({
+        const newMembers = await tx.groupMember.createMany({
           data: input.initialMembers.map((member) => ({
             id: v7(),
-            teamId: teamId,
+            groupId: groupId,
             userId: member.userId,
             role: member.role,
           })),
         });
 
         return {
-          team: newTeam,
+          group: newGroup,
           members: newMembers,
         };
       });
@@ -67,21 +67,21 @@ export class TeamService {
   @UseGuards(AuthGuard.RequiredAuthGuard)
   async addMembers(
     orgId: string,
-    teamId: string,
-    input: TeamDto.AddMembersToTeamInput,
+    groupId: string,
+    input: GroupDto.AddMembersToGroupInput,
     @CurrentUser() currentUser: AuthGuard.AuthUser,
   ) {
     try {
       const currentUserId = currentUser.id;
 
       return this.prisma.$transaction(async (tx) => {
-        // check team existence
-        // check if user is member of a team
+        // check group existence
+        // check if user is member of a group
         // check if they have sufficient permissions
         // check for existing members
-        const team = await tx.team.findUnique({
+        const group = await tx.group.findUnique({
           where: {
-            id: teamId,
+            id: groupId,
           },
           include: {
             members: {
@@ -94,18 +94,18 @@ export class TeamService {
           },
         });
 
-        if (!team) {
-          this.logger.log('Team not found');
-          throw new BadRequestException('Team not found');
+        if (!group) {
+          this.logger.log('Group not found');
+          throw new BadRequestException('Group not found');
         }
 
-        this.logger.log(`Found ${team.members.length} members`);
+        this.logger.log(`Found ${group.members.length} members`);
 
-        const currentUserTeamMembership = team.members.find(
+        const currentUserGroupMembership = group.members.find(
           (m) => m.userId === currentUserId,
         );
 
-        if (!currentUserTeamMembership) {
+        if (!currentUserGroupMembership) {
         }
       });
     } catch (e) {

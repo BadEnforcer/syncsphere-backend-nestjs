@@ -8,7 +8,7 @@ import { auth } from './auth';
 import { PrismaModule } from './prisma/prisma.module';
 import { OrganizationModule } from './organization/organization.module';
 import { CacheModule } from '@nestjs/cache-manager';
-import { TeamModule } from './team/team.module';
+import { GroupModule } from './group/group.module';
 
 @Module({
   imports: [
@@ -23,7 +23,7 @@ import { TeamModule } from './team/team.module';
     RedisModule,
     PrismaModule,
     OrganizationModule,
-    TeamModule,
+    GroupModule,
   ],
   controllers: [AppController],
   providers: [AppService],
