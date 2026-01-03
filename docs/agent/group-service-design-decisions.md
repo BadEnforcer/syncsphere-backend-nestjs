@@ -56,3 +56,18 @@ This document records key design decisions for the Group module.
 3. Use placeholder value
 
 **Chosen:** Remove the field entirely from schema.
+
+---
+
+## 5. Last Admin Protection
+
+### Decision: Last admin cannot remove themselves from the group
+**Date:** 2026-01-03
+
+**Reason:** Prevents orphaned groups with no admin. Ensures governance continuity.
+
+**Implementation:**
+- `removeMember()` checks if user is removing themselves AND is an admin
+- If they're the only admin, throws `BadRequestException('Cannot leave group as the last admin. Please assign another admin first.')`
+- Query fetches all members to count admins
+

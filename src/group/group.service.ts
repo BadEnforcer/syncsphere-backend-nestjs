@@ -222,25 +222,20 @@ export class GroupService {
   /**
    * Removes a member from a group and the associated conversation.
    * Admins can remove any member, or a user can remove themselves.
+   * The last admin cannot remove themselves - they must assign another admin first.
    */
   async removeMember(groupId: string, userId: string, session: UserSession) {
     try {
       const currentUserId = session.user.id;
 
       return this.prisma.$transaction(async (tx) => {
-        // Fetch group with conversation and relevant memberships
+        // Fetch group with conversation, relevant memberships, and all admins
         const group = await tx.group.findUnique({
           where: {
             id: groupId,
           },
           include: {
-            members: {
-              where: {
-                userId: {
-                  in: [userId, currentUserId],
-                },
-              },
-            },
+            members: true, // Fetch all members to count admins
             conversation: true,
           },
         });
@@ -283,6 +278,22 @@ export class GroupService {
           throw new ForbiddenException('Insufficient permissions');
         }
 
+        // Prevent the last admin from removing themselves
+        if (userId === currentUserId && memberToRemove.role === GROUP_MEMBERSHIP.ADMIN) {
+          const adminCount = group.members.filter(
+            (m) => m.role === GROUP_MEMBERSHIP.ADMIN,
+          ).length;
+
+          if (adminCount === 1) {
+            this.logger.debug(
+              `User ${currentUserId} is the last admin and cannot remove themselves from group ${groupId}`,
+            );
+            throw new BadRequestException(
+              'Cannot leave group as the last admin. Please assign another admin first.',
+            );
+          }
+        }
+
         // Delete group membership
         await tx.groupMember.delete({
           where: {
@@ -314,6 +325,7 @@ export class GroupService {
       throw e;
     }
   }
+
 
   /**
    * Promotes a group member to admin role.
