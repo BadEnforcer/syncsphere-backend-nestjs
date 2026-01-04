@@ -13,6 +13,7 @@ import { UserModule } from './user/user.module';
 import { ZodValidationPipe, ZodSerializerInterceptor } from 'nestjs-zod';
 import { ChatGateway } from './chat/chat.gateway';
 import { PresenceService } from './chat/presence/presence.service';
+import { R2Module } from './media/r2';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PresenceService } from './chat/presence/presence.service';
     PrismaModule,
     GroupModule,
     UserModule,
+    R2Module,
   ],
   controllers: [AppController],
   providers: [
