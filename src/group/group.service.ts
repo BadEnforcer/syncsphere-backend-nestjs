@@ -79,7 +79,7 @@ export class GroupService {
           },
         });
 
-        // Add all members as participants
+        // Add all members as participants (including the creator)
         await tx.participant.createMany({
           data: allMemberIds.map((userId) => ({
             id: v7(),

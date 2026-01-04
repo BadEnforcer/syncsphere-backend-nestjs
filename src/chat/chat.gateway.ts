@@ -45,8 +45,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
 
     // update last seen in background
-    this.logger.debug('Updating user last seen and redis presence');
-    void this.updateLastSeen(session.user.id);
+    this.logger.debug('Updating user redis presence');
     void this.presenceService.addConnection(session.user.id, client.id);
 
     client.join(`user:${session.user.id}`);
@@ -66,6 +65,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.logger.log(`User disconnected: ${session.user.id}`);
 
     const isCompletelyOffline = await this.presenceService.removeConnection(session.user.id, client.id);
+    void this.updateLastSeen(session.user.id);
 
     if (isCompletelyOffline) {
       // Only broadcast offline if no more sessions exist in Redis
@@ -101,7 +101,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
       // find the conversation
       // Session user is fetched, just to make sure user is Valid.
-      const [conversation, senderGroupMembership] = await Promise.all([
+      const [conversation] = await Promise.all([
         this.prisma.conversation.findUnique({
         where: {
           id: parsedMesage.data.conversationId,
@@ -109,12 +109,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         include: {
           participants: true
         },
-        }),
-        this.prisma.groupMember.findFirst({
-          where: {
-            groupId: parsedMesage.data.conversationId,
-            userId: parsedMesage.data.senderId,
-          }
         }),
       ])
 
@@ -125,8 +119,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       }
 
       // if user is not a member of the group
-      if (!senderGroupMembership) {
-        this.logger.error('User is not a member of the group');
+      if (!conversation.participants.some((participant) => participant.userId === parsedMesage.data.senderId)) {
+        this.logger.error('User is not a member of the group', conversation);
         client.emitWithAck('err', { message: 'User is not a member of the group', data: payload });
         return;
       }

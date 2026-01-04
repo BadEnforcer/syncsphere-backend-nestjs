@@ -9,6 +9,7 @@ import { auth } from './auth';
 import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { GroupModule } from './group/group.module';
+import { UserModule } from './user/user.module';
 import { ZodValidationPipe, ZodSerializerInterceptor } from 'nestjs-zod';
 import { ChatGateway } from './chat/chat.gateway';
 import { PresenceService } from './chat/presence/presence.service';
@@ -26,6 +27,7 @@ import { PresenceService } from './chat/presence/presence.service';
     RedisModule,
     PrismaModule,
     GroupModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [
