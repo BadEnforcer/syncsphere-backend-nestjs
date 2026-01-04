@@ -61,11 +61,13 @@ The response includes:
   - Most recent conversations are most relevant
 
 ### 7. Unread Count Calculation
-- **Logic**: Count messages where `timestamp > participant.lastReadAt` and `senderId != currentUserId`
+- **Logic**: Count messages where `timestamp > participant.lastReadAt`, `senderId != currentUserId`, and `deletedAt IS NULL`
 - **Rationale**: 
   - Timestamp-based approach is simple and efficient
   - Exclude own messages from unread count
+  - Exclude deleted messages (aligns with WhatsApp, Telegram, Signal behavior)
   - Uses existing `lastReadAt` field from Participant model
+  - Prevents phantom unread notifications for deleted content
 
 ### 8. Online Status for DM Participants
 - **Integration**: Fetches real-time status from `PresenceService`

@@ -200,6 +200,7 @@ export class UserService {
           );
 
           // Calculate unread count: messages with timestamp > lastReadAt
+          // Excludes deleted messages and own messages
           const unreadCount = await this.prisma.message.count({
             where: {
               conversationId: conv.id,
@@ -209,6 +210,7 @@ export class UserService {
               senderId: {
                 not: userId, // Don't count own messages as unread
               },
+              deletedAt: null, // Don't count deleted messages as unread
             },
           });
 
