@@ -1,5 +1,5 @@
 import { Inject, Logger, UseGuards } from '@nestjs/common';
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayInit, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import * as nestjsBetterAuth from '@thallesp/nestjs-better-auth';
 import Redis from 'ioredis';
 import { Prisma } from '@prisma/client';
@@ -10,10 +10,11 @@ import { Server, Socket } from 'socket.io';
 import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from 'src/auth';
 import z from 'zod';
+import { PresenceService } from './presence/presence.service';
 
 @UseGuards(nestjsBetterAuth.AuthGuard)
 @WebSocketGateway()
-export class ChatGateway implements OnGatewayConnection, OnGatewayInit  {
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit  {
 
   private server: Server;
 
@@ -21,6 +22,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit  {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly presenceService: PresenceService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis, 
   ) { }
 
@@ -42,14 +44,37 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit  {
       return;
     }
 
+    // update last seen in background
+    this.logger.debug('Updating user last seen and redis presence');
+    void this.updateLastSeen(session.user.id);
+    void this.presenceService.addConnection(session.user.id, client.id);
+
     client.join(`user:${session.user.id}`);
+    client.broadcast.emit('user_status_change', { userId: session.user.id, status: 'online' });
     this.logger.log(`User connected: ${session.user.id}`);
-
-
 
   }
 
-  @SubscribeMessage('send-message')
+  async handleDisconnect(client: Socket) {
+    const headers = client.handshake.headers;
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(headers),
+    })
+    if (!session) {
+      return;
+    }
+    this.logger.log(`User disconnected: ${session.user.id}`);
+
+    const isCompletelyOffline = await this.presenceService.removeConnection(session.user.id, client.id);
+
+    if (isCompletelyOffline) {
+      // Only broadcast offline if no more sessions exist in Redis
+      client.broadcast.emit('user_status_change', { userId: session.user.id, status: 'offline' });
+    }
+
+  }
+
+  @SubscribeMessage('send_message')
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: any,
@@ -191,6 +216,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayInit  {
           action: MessageAction.DELETE,
         },
       });
+    }
+  }
+
+  private async updateLastSeen(userId: string) {
+    try {
+      await this.prisma.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          lastSeenAt: new Date(),
+        },
+      });
+    } catch (e) {
+      this.logger.error(`Failed to update last seen for user ${userId}`);
+      this.logger.error(e);
     }
   }
 }

@@ -11,6 +11,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { GroupModule } from './group/group.module';
 import { ZodValidationPipe, ZodSerializerInterceptor } from 'nestjs-zod';
 import { ChatGateway } from './chat/chat.gateway';
+import { PresenceService } from './chat/presence/presence.service';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ChatGateway } from './chat/chat.gateway';
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
     ChatGateway,
+    PresenceService,
   ],
 })
 export class AppModule {}
