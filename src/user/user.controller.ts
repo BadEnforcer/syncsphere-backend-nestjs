@@ -1,6 +1,8 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiTags, ApiCookieAuth, ApiParam, ApiOkResponse } from '@nestjs/swagger';
+import { Controller, Get, Param, Patch, Body } from '@nestjs/common';
+import { ApiTags, ApiCookieAuth, ApiParam } from '@nestjs/swagger';
 import { UserService } from './user.service';
+import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import { UpdateInvisibilityDto } from './user.dto';
 
 /**
  * Controller for user-related operations.
@@ -18,10 +20,19 @@ export class UserController {
    */
   @Get('/:userId/status')
   @ApiParam({ name: 'userId', description: 'ID of the user to get status for' })
-  @ApiOkResponse({
-    description: 'User status information',
-  })
   async getUserStatus(@Param('userId') userId: string) {
     return this.userService.getUserStatus(userId);
+  }
+
+  /**
+   * Updates the current user's invisibility status.
+   * When invisible is true, the user will appear offline to others.
+   */
+  @Patch('/me/invisibility')
+  async updateInvisibility(
+    @Body() dto: UpdateInvisibilityDto,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.userService.updateInvisibility(currentUser.user.id, dto.invisible);
   }
 }

@@ -63,4 +63,34 @@ export class UserService {
       throw error;
     }
   }
+
+  /**
+   * Updates the user's invisibility status.
+   * When invisible is true, the user will appear offline to others.
+   */
+  async updateInvisibility(userId: string, invisible: boolean) {
+    try {
+      this.logger.log(`Updating invisibility for user ${userId} to ${invisible}`);
+
+      // Update the invisibility status in the database
+      const updatedUser = await this.prisma.user.update({
+        where: { id: userId },
+        data: { invisible },
+        select: {
+          id: true,
+          invisible: true,
+        },
+      });
+
+      this.logger.log(`User ${userId} invisibility updated to ${updatedUser.invisible}`);
+
+      return {
+        invisible: updatedUser.invisible,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to update invisibility for user ${userId} due to an error`);
+      this.logger.error(error);
+      throw error;
+    }
+  }
 }

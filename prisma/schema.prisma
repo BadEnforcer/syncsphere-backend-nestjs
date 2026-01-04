@@ -18,7 +18,7 @@ model User {
   banned        Boolean?      @default(false)
   banReason     String?
   banExpires    DateTime?
-  invisible     Boolean?      @default(false) // if true, use is not marked as online
+  invisible     Boolean       @default(false) // if true, use is not marked as online
   lastSeenAt    DateTime?
   sessions      Session[]
   accounts      Account[]
