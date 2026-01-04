@@ -1,4 +1,13 @@
-import { Controller, Post, Body, Param, Patch, Delete, Get, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Patch,
+  Delete,
+  Get,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiParam, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
 import { GroupService } from './group.service';
 import * as GroupDto from './group.dto';

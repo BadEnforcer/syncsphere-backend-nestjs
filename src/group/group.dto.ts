@@ -32,7 +32,9 @@ export type CreateGroupInput = z.infer<typeof CreateGroupSchema>;
  */
 export const AddMembersToGroupSchema = z.array(z.string()).min(1);
 
-export class AddMembersToGroupDto extends createZodDto(AddMembersToGroupSchema) {}
+export class AddMembersToGroupDto extends createZodDto(
+  AddMembersToGroupSchema,
+) {}
 export type AddMembersToGroupInput = z.infer<typeof AddMembersToGroupSchema>;
 
 /**
@@ -80,4 +82,3 @@ export class GetUserGroupsQueryDto extends createZodDto(
   GetUserGroupsQuerySchema,
 ) {}
 export type GetUserGroupsQueryInput = z.infer<typeof GetUserGroupsQuerySchema>;
-

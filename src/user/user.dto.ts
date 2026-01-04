@@ -7,7 +7,9 @@ export const UpdateInvisibilitySchema = z.object({
   invisible: z.boolean(),
 });
 
-export class UpdateInvisibilityDto extends createZodDto(UpdateInvisibilitySchema) {}
+export class UpdateInvisibilityDto extends createZodDto(
+  UpdateInvisibilitySchema,
+) {}
 
 // Schema for getting user conversations with pagination
 export const GetConversationsQuerySchema = z.object({
@@ -48,7 +50,10 @@ export class LastMessageResponse {
   @ApiProperty({ description: 'Message timestamp' })
   timestamp: Date;
 
-  @ApiProperty({ description: 'Message sender details', type: MessageSenderResponse })
+  @ApiProperty({
+    description: 'Message sender details',
+    type: MessageSenderResponse,
+  })
   sender: MessageSenderResponse;
 
   @ApiProperty({ description: 'Whether the message was deleted' })

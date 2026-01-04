@@ -15,24 +15,24 @@ export class PresenceService {
     // Add the socketId to the set
     await this.redis.sadd(key, socketId);
     // Set/Refresh the TTL for the entire set
-    await this.redis.expire(key, 3600); 
+    await this.redis.expire(key, 3600);
   }
 
   async removeConnection(userId: string, socketId: string): Promise<boolean> {
     const key = this.getPresenceKey(userId);
-    
+
     // Remove specific socket
     await this.redis.srem(key, socketId);
-    
+
     // Check if any sessions remain
     const remainingSessions = await this.redis.scard(key);
-    
+
     // If no sessions left, we can delete the key immediately
     if (remainingSessions === 0) {
       await this.redis.del(key);
       return true; // User is now fully offline
     }
-    
+
     return false; // User is still online on other devices
   }
 

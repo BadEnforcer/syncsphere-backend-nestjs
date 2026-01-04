@@ -41,6 +41,9 @@ async function bootstrap() {
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
 
+  // Enable graceful shutdown (automatically calls adapter.close() on SIGTERM/SIGINT)
+  app.enableShutdownHooks();
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

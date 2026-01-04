@@ -1,8 +1,18 @@
 import { Controller, Get, Param, Patch, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiCookieAuth, ApiParam, ApiQuery, ApiOkResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiCookieAuth,
+  ApiParam,
+  ApiQuery,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
-import { UpdateInvisibilityDto, GetConversationsQueryDto, GetConversationsResponse } from './user.dto';
+import {
+  UpdateInvisibilityDto,
+  GetConversationsQueryDto,
+  GetConversationsResponse,
+} from './user.dto';
 
 /**
  * Controller for user-related operations.
@@ -25,7 +35,8 @@ export class UserController {
     name: 'limit',
     required: false,
     type: Number,
-    description: 'Maximum number of conversations to return (default: 50, max: 100)',
+    description:
+      'Maximum number of conversations to return (default: 50, max: 100)',
   })
   @ApiQuery({
     name: 'offset',
@@ -67,6 +78,9 @@ export class UserController {
     @Body() dto: UpdateInvisibilityDto,
     @Session() currentUser: UserSession,
   ) {
-    return this.userService.updateInvisibility(currentUser.user.id, dto.invisible);
+    return this.userService.updateInvisibility(
+      currentUser.user.id,
+      dto.invisible,
+    );
   }
 }

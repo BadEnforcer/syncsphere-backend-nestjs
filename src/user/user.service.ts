@@ -62,7 +62,9 @@ export class UserService {
         throw error;
       }
 
-      this.logger.error(`Failed to get user status for ${userId} due to an error`);
+      this.logger.error(
+        `Failed to get user status for ${userId} due to an error`,
+      );
       this.logger.error(error);
       throw error;
     }
@@ -74,7 +76,9 @@ export class UserService {
    */
   async updateInvisibility(userId: string, invisible: boolean) {
     try {
-      this.logger.log(`Updating invisibility for user ${userId} to ${invisible}`);
+      this.logger.log(
+        `Updating invisibility for user ${userId} to ${invisible}`,
+      );
 
       // Update the invisibility status in the database
       const updatedUser = await this.prisma.user.update({
@@ -86,13 +90,17 @@ export class UserService {
         },
       });
 
-      this.logger.log(`User ${userId} invisibility updated to ${updatedUser.invisible}`);
+      this.logger.log(
+        `User ${userId} invisibility updated to ${updatedUser.invisible}`,
+      );
 
       return {
         invisible: updatedUser.invisible,
       };
     } catch (error) {
-      this.logger.error(`Failed to update invisibility for user ${userId} due to an error`);
+      this.logger.error(
+        `Failed to update invisibility for user ${userId} due to an error`,
+      );
       this.logger.error(error);
       throw error;
     }
@@ -223,7 +231,8 @@ export class UserService {
             : null;
 
           // For DMs: get the other participant
-          let participantResponse: typeof ConversationResponse.prototype.participant = undefined;
+          let participantResponse: typeof ConversationResponse.prototype.participant =
+            undefined;
           if (!conv.isGroup) {
             const otherParticipant = conv.participants.find(
               (p) => p.userId !== userId,
@@ -241,14 +250,15 @@ export class UserService {
                 id: otherParticipant.user.id,
                 name: otherParticipant.user.name,
                 image: otherParticipant.user.image,
-                status: effectiveStatus as 'online' | 'offline',
+                status: effectiveStatus,
                 lastSeenAt: otherParticipant.user.lastSeenAt,
               };
             }
           }
 
           // For groups: get group info
-          let groupResponse: typeof ConversationResponse.prototype.group = undefined;
+          let groupResponse: typeof ConversationResponse.prototype.group =
+            undefined;
           if (conv.isGroup && conv.group) {
             groupResponse = {
               id: conv.group.id,
@@ -286,4 +296,3 @@ export class UserService {
     }
   }
 }
-

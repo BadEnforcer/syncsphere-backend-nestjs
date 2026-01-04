@@ -1,11 +1,23 @@
 import { Inject, Logger, UseGuards } from '@nestjs/common';
-import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
+  SubscribeMessage,
+  WebSocketGateway,
+} from '@nestjs/websockets';
 import * as nestjsBetterAuth from '@thallesp/nestjs-better-auth';
 import Redis from 'ioredis';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { REDIS_CLIENT } from 'src/redis/redis.constants';
-import { CreateMessageSchema, IncomingMessageSchema, MessageAction } from './chat.message.dto';
+import {
+  CreateMessageSchema,
+  IncomingMessageSchema,
+  MessageAction,
+} from './chat.message.dto';
 import { Server, Socket } from 'socket.io';
 import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from 'src/auth';
@@ -14,8 +26,9 @@ import { PresenceService } from './presence/presence.service';
 
 @UseGuards(nestjsBetterAuth.AuthGuard)
 @WebSocketGateway()
-export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit  {
-
+export class ChatGateway
+  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
+{
   private server: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
@@ -23,21 +36,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   constructor(
     private readonly prisma: PrismaService,
     private readonly presenceService: PresenceService,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis, 
-  ) { }
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+  ) {}
 
   afterInit(server: Server) {
     this.server = server;
   }
-  
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async handleConnection(client: Socket, ...args: any[]) {
-
     const headers = client.handshake.headers;
 
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(headers),
-    })
+    });
 
     if (!session) {
       client.disconnect();
@@ -48,30 +60,37 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     this.logger.debug('Updating user redis presence');
     void this.presenceService.addConnection(session.user.id, client.id);
 
-    client.join(`user:${session.user.id}`);
-    client.broadcast.emit('user_status_change', { userId: session.user.id, status: 'online' });
+    await client.join(`user:${session.user.id}`);
+    client.broadcast.emit('user_status_change', {
+      userId: session.user.id,
+      status: 'online',
+    });
     this.logger.log(`User connected: ${session.user.id}`);
-
   }
 
   async handleDisconnect(client: Socket) {
     const headers = client.handshake.headers;
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(headers),
-    })
+    });
     if (!session) {
       return;
     }
     this.logger.log(`User disconnected: ${session.user.id}`);
 
-    const isCompletelyOffline = await this.presenceService.removeConnection(session.user.id, client.id);
+    const isCompletelyOffline = await this.presenceService.removeConnection(
+      session.user.id,
+      client.id,
+    );
     void this.updateLastSeen(session.user.id);
 
     if (isCompletelyOffline) {
       // Only broadcast offline if no more sessions exist in Redis
-      client.broadcast.emit('user_status_change', { userId: session.user.id, status: 'offline' });
+      client.broadcast.emit('user_status_change', {
+        userId: session.user.id,
+        status: 'offline',
+      });
     }
-
   }
 
   @SubscribeMessage('send_message')
@@ -80,19 +99,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     @MessageBody() payload: any,
     @nestjsBetterAuth.Session() session: nestjsBetterAuth.UserSession,
   ) {
-
     try {
       const parsedMesage = IncomingMessageSchema.safeParse(payload);
       if (!parsedMesage.success) {
         this.logger.error('Failed to parse message payload');
         this.logger.error(parsedMesage.error);
-        client.emitWithAck('err', { message: 'Failed to parse message payload', data: payload });
+        client.emit('err', {
+          message: 'Failed to parse message payload',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: payload,
+        });
         return;
       }
 
       if (session.user.id !== parsedMesage.data.senderId) {
-        this.logger.log(`User ${session.user.id} attempted to send message as ${parsedMesage.data.senderId} without proper impersonation`);
-        client.emitWithAck('err', { message: 'Please user the senderID of the logged in User', data: payload });
+        this.logger.log(
+          `User ${session.user.id} attempted to send message as ${parsedMesage.data.senderId} without proper impersonation`,
+        );
+        client.emit('err', {
+          message: 'Please user the senderID of the logged in User',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: payload,
+        });
         return;
       }
 
@@ -109,8 +137,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       if (isDMConversation) {
         const dmUserIds = conversationId.split('_');
         if (!dmUserIds.includes(senderId)) {
-          this.logger.error(`Sender ${senderId} is not part of DM conversation ${conversationId}`);
-          client.emitWithAck('err', { message: 'Invalid DM conversation: sender is not a participant', data: payload });
+          this.logger.error(
+            `Sender ${senderId} is not part of DM conversation ${conversationId}`,
+          );
+          client.emit('err', {
+            message: 'Invalid DM conversation: sender is not a participant',
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            data: payload,
+          });
           return;
         }
       }
@@ -131,8 +165,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
         });
 
         if (usersExist !== 2) {
-          this.logger.error(`One or both users do not exist for DM: ${conversationId}`);
-          client.emitWithAck('err', { message: 'One or both users do not exist', data: payload });
+          this.logger.error(
+            `One or both users do not exist for DM: ${conversationId}`,
+          );
+          client.emit('err', {
+            message: 'One or both users do not exist',
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            data: payload,
+          });
           return;
         }
 
@@ -155,14 +195,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
       if (!conversation) {
         this.logger.error('Conversation not found');
-        client.emitWithAck('err', { message: 'Conversation not found', data: payload });
+        client.emit('err', {
+          message: 'Conversation not found',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: payload,
+        });
         return;
       }
 
       // if user is not a member of the group
-      if (!conversation.participants.some((participant) => participant.userId === parsedMesage.data.senderId)) {
+      if (
+        !conversation.participants.some(
+          (participant) => participant.userId === parsedMesage.data.senderId,
+        )
+      ) {
         this.logger.error('User is not a member of the group', conversation);
-        client.emitWithAck('err', { message: 'User is not a member of the group', data: payload });
+        client.emit('err', {
+          message: 'User is not a member of the group',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: payload,
+        });
         return;
       }
 
@@ -173,26 +225,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       if (!parsedDBMessage.success) {
         this.logger.error('Failed to parse message payload when saving to DB');
         this.logger.error(parsedDBMessage.error);
-        client.emitWithAck('err', { message: 'Failed to parse message payload', data: payload });
+        client.emit('err', {
+          message: 'Failed to parse message payload',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: payload,
+        });
         return;
       }
 
-      await this.handleMessageAction(parsedMesage.data.action, parsedMesage.data, parsedDBMessage.data);
-
+      await this.handleMessageAction(
+        parsedMesage.data.action,
+        parsedMesage.data,
+        parsedDBMessage.data,
+      );
 
       // send to all members
-      conversation.participants.forEach(participant => {
-          this.server.to(`user:${participant.userId}`).emit('message', parsedMesage.data);
-        });
+      conversation.participants.forEach((participant) => {
+        this.server
+          .to(`user:${participant.userId}`)
+          .emit('message', parsedMesage.data);
+      });
 
       // TODO: in future, send notifications too
-
-
     } catch (e) {
-      this.logger.error('Failed to handle send-message ws event')
+      this.logger.error('Failed to handle send-message ws event');
       this.logger.error(e);
     }
-
   }
 
   /**
@@ -289,4 +347,3 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return userId1.length > 0 && userId2.length > 0 && userId1 < userId2;
   }
 }
-

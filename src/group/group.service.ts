@@ -279,7 +279,10 @@ export class GroupService {
         }
 
         // Prevent the last admin from removing themselves
-        if (userId === currentUserId && memberToRemove.role === GROUP_MEMBERSHIP.ADMIN) {
+        if (
+          userId === currentUserId &&
+          memberToRemove.role === GROUP_MEMBERSHIP.ADMIN
+        ) {
           const adminCount = group.members.filter(
             (m) => m.role === GROUP_MEMBERSHIP.ADMIN,
           ).length;
@@ -325,7 +328,6 @@ export class GroupService {
       throw e;
     }
   }
-
 
   /**
    * Promotes a group member to admin role.
@@ -625,7 +627,10 @@ export class GroupService {
    * Optionally includes the latest message from each group's conversation.
    * Returns group details along with member count and user's role.
    */
-  async getUserGroups(session: UserSession, includeLatestMessage: boolean = false) {
+  async getUserGroups(
+    session: UserSession,
+    includeLatestMessage: boolean = false,
+  ) {
     try {
       const currentUserId = session.user.id;
 
@@ -697,8 +702,11 @@ export class GroupService {
                 sender: conversation.messages[0].sender,
               }
             : null;
-        
-        console.assert(group.conversation?.id, `Conversation id is missing for group ${group.id}`);
+
+        console.assert(
+          group.conversation?.id,
+          `Conversation id is missing for group ${group.id}`,
+        );
 
         return {
           id: group.id,
@@ -708,7 +716,7 @@ export class GroupService {
           memberCount: group._count.members,
           myRole: membership.role,
           createdAt: group.createdAt,
-          conversationId: group.conversation?.id || "", // do not fail silently
+          conversationId: group.conversation?.id || '', // do not fail silently
           ...(includeLatestMessage && { latestMessage }),
         };
       });
