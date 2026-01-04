@@ -99,18 +99,59 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       // NOTE: if session user does not belong to group, it can still impersonate and send messages
       // This can be dealt with in the future
 
-      // find the conversation
-      // Session user is fetched, just to make sure user is Valid.
-      const [conversation] = await Promise.all([
-        this.prisma.conversation.findUnique({
-        where: {
-          id: parsedMesage.data.conversationId,
-        },
-        include: {
-          participants: true
-        },
-        }),
-      ])
+      const conversationId = parsedMesage.data.conversationId;
+      const senderId = parsedMesage.data.senderId;
+
+      // Check if this is a DM conversation (format: userId1_userId2, sorted alphabetically)
+      const isDMConversation = this.isDMConversationId(conversationId);
+
+      // Validate DM conversation ID: sender must be one of the two users
+      if (isDMConversation) {
+        const dmUserIds = conversationId.split('_');
+        if (!dmUserIds.includes(senderId)) {
+          this.logger.error(`Sender ${senderId} is not part of DM conversation ${conversationId}`);
+          client.emitWithAck('err', { message: 'Invalid DM conversation: sender is not a participant', data: payload });
+          return;
+        }
+      }
+
+      // Find the conversation, or create it if it's a DM and doesn't exist
+      let conversation = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { participants: true },
+      });
+
+      // Auto-create DM conversation if it doesn't exist
+      if (!conversation && isDMConversation) {
+        const [userId1, userId2] = conversationId.split('_');
+
+        // Verify both users exist before creating the conversation
+        const usersExist = await this.prisma.user.count({
+          where: { id: { in: [userId1, userId2] } },
+        });
+
+        if (usersExist !== 2) {
+          this.logger.error(`One or both users do not exist for DM: ${conversationId}`);
+          client.emitWithAck('err', { message: 'One or both users do not exist', data: payload });
+          return;
+        }
+
+        // Create the DM conversation with both participants
+        conversation = await this.prisma.conversation.create({
+          data: {
+            id: conversationId,
+            isGroup: false,
+            participants: {
+              createMany: {
+                data: [{ userId: userId1 }, { userId: userId2 }],
+              },
+            },
+          },
+          include: { participants: true },
+        });
+
+        this.logger.log(`Created new DM conversation: ${conversationId}`);
+      }
 
       if (!conversation) {
         this.logger.error('Conversation not found');
@@ -227,6 +268,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       this.logger.error(`Failed to update last seen for user ${userId}`);
       this.logger.error(e);
     }
+  }
+
+  /**
+   * Checks if a conversation ID follows the DM format: userId1_userId2
+   * where userId1 < userId2 (alphabetically sorted).
+   * Returns true if the ID contains exactly one underscore and the parts are in sorted order.
+   */
+  private isDMConversationId(conversationId: string): boolean {
+    const parts = conversationId.split('_');
+
+    // Must have exactly 2 parts (two user IDs)
+    if (parts.length !== 2) {
+      return false;
+    }
+
+    const [userId1, userId2] = parts;
+
+    // Both parts must be non-empty and sorted alphabetically
+    return userId1.length > 0 && userId2.length > 0 && userId1 < userId2;
   }
 }
 
