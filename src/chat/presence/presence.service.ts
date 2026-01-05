@@ -45,4 +45,38 @@ export class PresenceService {
   async getActiveSessionsCount(userId: string): Promise<number> {
     return await this.redis.scard(this.getPresenceKey(userId));
   }
+
+  /**
+   * Gets online/offline status for multiple users using Redis pipeline.
+   * Uses batch exists checks for efficient bulk lookups instead of individual calls.
+   */
+  async getBulkStatus(
+    userIds: string[],
+  ): Promise<Map<string, 'online' | 'offline'>> {
+    if (userIds.length === 0) {
+      return new Map();
+    }
+
+    // Build keys array for pipeline
+    const keys = userIds.map((userId) => this.getPresenceKey(userId));
+
+    // Use pipeline to batch exists checks
+    const pipeline = this.redis.pipeline();
+    for (const key of keys) {
+      pipeline.exists(key);
+    }
+
+    // Execute pipeline and get results
+    const results = await pipeline.exec();
+
+    // Build status map from results
+    const statusMap = new Map<string, 'online' | 'offline'>();
+    for (let i = 0; i < userIds.length; i++) {
+      // Pipeline result format: [error, value]
+      const exists = results?.[i]?.[1] as number;
+      statusMap.set(userIds[i], exists ? 'online' : 'offline');
+    }
+
+    return statusMap;
+  }
 }

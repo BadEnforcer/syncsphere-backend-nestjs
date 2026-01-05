@@ -214,3 +214,27 @@ export class GetAdminMembersResponse {
   @ApiProperty({ description: 'Whether more results are available' })
   hasMore: boolean;
 }
+
+// Swagger response class for individual user status
+export class UserStatusResponse {
+  @ApiProperty({ description: 'User ID' })
+  id: string;
+
+  @ApiProperty({ description: 'User name' })
+  name: string;
+
+  @ApiProperty({ description: 'User profile image URL', nullable: true })
+  image: string | null;
+
+  @ApiProperty({ description: 'Online status', enum: ['online', 'offline'] })
+  status: 'online' | 'offline';
+}
+
+// Response wrapper for all users status
+export class GetAllUsersStatusResponse {
+  @ApiProperty({
+    description: 'List of users with their status',
+    type: [UserStatusResponse],
+  })
+  data: UserStatusResponse[];
+}

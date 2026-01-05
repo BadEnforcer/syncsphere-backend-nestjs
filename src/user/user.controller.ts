@@ -1,4 +1,13 @@
-import { Controller, Get, Param, Patch, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Body,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
   ApiCookieAuth,
@@ -15,6 +24,7 @@ import {
   GetMembersQueryDto,
   GetMembersResponse,
   GetAdminMembersResponse,
+  GetAllUsersStatusResponse,
 } from './user.dto';
 import { Roles } from '@thallesp/nestjs-better-auth';
 
@@ -64,6 +74,23 @@ export class UserController {
   }
 
   /**
+   * Returns the online/offline status of all organization members.
+   * This endpoint is cached for 5 seconds to reduce load on Redis.
+   * Respects user invisibility - invisible users are shown as 'offline'.
+   */
+  @Get('/members/status')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(5000) // 5 seconds cache
+  @ApiOkResponse({
+    description:
+      'List of all users with their online/offline status (cached for 5s)',
+    type: GetAllUsersStatusResponse,
+  })
+  async getAllUsersStatus() {
+    return this.userService.getAllUsersStatus();
+  }
+
+  /**
    * Returns the status, last seen timestamp, and invisible flag for a user.
    * If the user is in invisible mode, status will always be 'offline'.
    */
@@ -93,6 +120,8 @@ export class UserController {
    * Excludes banned users. Supports fuzzy search on name, email, and id.
    */
   @Get('/members')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(5000) // 5 seconds cache
   @ApiQuery({
     name: 'limit',
     required: false,

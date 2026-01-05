@@ -423,4 +423,57 @@ export class UserService {
       throw error;
     }
   }
+
+  /**
+   * Fetches all non-banned users with their online/offline status.
+   * Uses parallel fetching via PresenceService.getBulkStatus() for efficiency.
+   * Respects user invisibility - invisible users are shown as 'offline'.
+   */
+  async getAllUsersStatus() {
+    try {
+      this.logger.log('Fetching all users status');
+
+      // Fetch all non-banned users
+      const users = await this.prisma.user.findMany({
+        where: { banned: { not: true } },
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          invisible: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      // Get user IDs for bulk status lookup
+      const userIds = users.map((u) => u.id);
+
+      // Fetch all statuses in parallel
+      const statusMap = await this.presenceService.getBulkStatus(userIds);
+
+      // Build response with effective status (respecting invisibility)
+      const usersWithStatus = users.map((user) => {
+        const presenceStatus = statusMap.get(user.id) ?? 'offline';
+        // If user is invisible, always show as offline
+        const effectiveStatus = user.invisible ? 'offline' : presenceStatus;
+
+        return {
+          id: user.id,
+          name: user.name,
+          image: user.image,
+          status: effectiveStatus,
+        };
+      });
+
+      this.logger.log(`Fetched status for ${usersWithStatus.length} users`);
+
+      return {
+        data: usersWithStatus,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch all users status due to an error');
+      this.logger.error(error);
+      throw error;
+    }
+  }
 }
