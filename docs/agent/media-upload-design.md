@@ -71,14 +71,27 @@ model Media {
 3. **Not found**: Returns 404
 4. **Not owner**: Returns 403
 
-## Remaining Work
+## Cleanup Job (BullMQ)
 
-- Stage 5: Edge case testing for confirm/delete
-- Stage 6: BullMQ cleanup job for orphaned PENDING uploads
+### Configuration
+- **Queue name**: `media-cleanup`
+- **Cron schedule**: `0 * * * *` (hourly)
+- **Batch size**: 100 records per job
+- **Job retention**: Completed removed after 1hr, failed kept for 24hr
+
+### Files
+- `src/media/cleanup/media-cleanup.constants.ts` - Queue config constants
+- `src/media/cleanup/media-cleanup.processor.ts` - Job processor logic
+- `src/media/cleanup/media-cleanup.service.ts` - Job scheduling service
+- `src/media/cleanup/media-cleanup.module.ts` - Module configuration
 
 ---
 
-## R2 Debugging Notes
+## All Stages Complete ✅
+
+- Stage 1-4: R2 setup, upload flow, testing
+- Stage 5: Edge case testing
+- Stage 6: BullMQ cleanup job
 
 ### Issue: SignatureDoesNotMatch Error
 

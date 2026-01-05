@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { APP_PIPE, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth';
@@ -19,6 +20,16 @@ import { MediaModule } from './media/media.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    // BullMQ configuration for job queues
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          url: configService.getOrThrow<string>('REDIS_URL'),
+        },
+      }),
+      inject: [ConfigService],
     }),
     AuthModule.forRoot({ auth, disableGlobalAuthGuard: false }),
     CacheModule.register({
