@@ -1,4 +1,4 @@
 {
-  "buildCommand": "pnpm dlx exec prisma build && pnpm run build",
+  "buildCommand": "pnpm dlx exec prisma generate && pnpm run build",
   "installCommand": "pnpm install"
 }
