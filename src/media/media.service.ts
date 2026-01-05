@@ -215,7 +215,10 @@ export class MediaService {
       }
 
       // Delete from R2 first
-      await this.r2Service.deleteObject(media.key);
+      const isDeletedFromR2 = await this.r2Service.deleteObject(media.key);
+      this.logger.log(
+        `Did media ${mediaId} get deleted from R2? ${isDeletedFromR2}`,
+      );
 
       // Delete from database
       await this.prisma.media.delete({
