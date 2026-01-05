@@ -8,7 +8,13 @@ import {
   Get,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiParam, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiParam,
+  ApiCookieAuth,
+  ApiQuery,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { GroupService } from './group.service';
 import * as GroupDto from './group.dto';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
@@ -34,6 +40,10 @@ export class GroupController {
     type: Boolean,
     description: 'Include the latest message from each group (default: false)',
   })
+  @ApiOkResponse({
+    description: 'List of groups the user is a member of',
+    type: GroupDto.GetUserGroupsResponse,
+  })
   async getUserGroups(
     @Query() query: GroupDto.GetUserGroupsQueryDto,
     @Session() currentUser: UserSession,
@@ -45,6 +55,10 @@ export class GroupController {
    * Creates a new group with optional initial members.
    */
   @Post('/')
+  @ApiOkResponse({
+    description: 'The newly created group',
+    type: GroupDto.GroupOperationResponse,
+  })
   async createGroup(
     @Body() input: GroupDto.CreateGroupDto,
     @Session() currentUser: UserSession,
@@ -57,6 +71,10 @@ export class GroupController {
    */
   @Post('/:groupId/add-members')
   @ApiParam({ name: 'groupId', description: 'ID of the group' })
+  @ApiOkResponse({
+    description: 'List of newly created memberships',
+    type: GroupDto.AddMembersResponse,
+  })
   async addMembers(
     @Param('groupId') groupId: string,
     @Body() input: GroupDto.AddMembersToGroupDto,
@@ -72,6 +90,10 @@ export class GroupController {
   @Post('/:groupId/remove-member/:userId')
   @ApiParam({ name: 'groupId', description: 'ID of the group' })
   @ApiParam({ name: 'userId', description: 'ID of the user to remove' })
+  @ApiOkResponse({
+    description: 'Success status of the operation',
+    type: GroupDto.SuccessResponse,
+  })
   async removeMember(
     @Param('groupId') groupId: string,
     @Param('userId') userId: string,
@@ -86,6 +108,10 @@ export class GroupController {
    */
   @Patch('/:groupId/members/promote')
   @ApiParam({ name: 'groupId', description: 'ID of the group' })
+  @ApiOkResponse({
+    description: 'Promotion result with success status',
+    type: GroupDto.PromoteMemberResponse,
+  })
   async promoteToAdmin(
     @Param('groupId') groupId: string,
     @Body() input: GroupDto.PromoteMemberDto,
@@ -100,6 +126,10 @@ export class GroupController {
    */
   @Patch('/:groupId/members/demote')
   @ApiParam({ name: 'groupId', description: 'ID of the group' })
+  @ApiOkResponse({
+    description: 'Demotion result with success status',
+    type: GroupDto.DemoteMemberResponse,
+  })
   async demoteFromAdmin(
     @Param('groupId') groupId: string,
     @Body() input: GroupDto.DemoteMemberDto,
@@ -114,6 +144,10 @@ export class GroupController {
    */
   @Delete('/:groupId')
   @ApiParam({ name: 'groupId', description: 'ID of the group to disband' })
+  @ApiOkResponse({
+    description: 'Success status of the operation',
+    type: GroupDto.SuccessResponse,
+  })
   async disbandGroup(
     @Param('groupId') groupId: string,
     @Session() currentUser: UserSession,
@@ -127,6 +161,10 @@ export class GroupController {
    */
   @Patch('/:groupId')
   @ApiParam({ name: 'groupId', description: 'ID of the group to update' })
+  @ApiOkResponse({
+    description: 'The updated group',
+    type: GroupDto.GroupOperationResponse,
+  })
   async updateGroup(
     @Param('groupId') groupId: string,
     @Body() input: GroupDto.UpdateGroupDto,
