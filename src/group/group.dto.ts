@@ -82,3 +82,16 @@ export class GetUserGroupsQueryDto extends createZodDto(
   GetUserGroupsQuerySchema,
 ) {}
 export type GetUserGroupsQueryInput = z.infer<typeof GetUserGroupsQuerySchema>;
+
+/**
+ * Schema for updating a group.
+ * All fields are optional - only provided fields will be updated.
+ */
+export const UpdateGroupSchema = z.object({
+  name: z.string().min(1).optional(),
+  logo: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export class UpdateGroupDto extends createZodDto(UpdateGroupSchema) {}
+export type UpdateGroupInput = z.infer<typeof UpdateGroupSchema>;

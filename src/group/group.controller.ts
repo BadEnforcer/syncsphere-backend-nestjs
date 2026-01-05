@@ -120,4 +120,18 @@ export class GroupController {
   ) {
     return this.groupService.disbandGroup(groupId, currentUser);
   }
+
+  /**
+   * Updates group information (name, logo, description).
+   * Only admins can update the group.
+   */
+  @Patch('/:groupId')
+  @ApiParam({ name: 'groupId', description: 'ID of the group to update' })
+  async updateGroup(
+    @Param('groupId') groupId: string,
+    @Body() input: GroupDto.UpdateGroupDto,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.groupService.updateGroup(groupId, input, currentUser);
+  }
 }

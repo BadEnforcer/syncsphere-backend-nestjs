@@ -732,4 +732,105 @@ export class GroupService {
       throw e;
     }
   }
+
+  /**
+   * Updates group information (name, logo, description).
+   * Only admins can update the group.
+   * If the name is updated, the associated conversation name is also synced.
+   */
+  async updateGroup(
+    groupId: string,
+    input: GroupDto.UpdateGroupInput,
+    session: UserSession,
+  ) {
+    try {
+      const currentUserId = session.user.id;
+
+      return this.prisma.$transaction(async (tx) => {
+        // Fetch group with current user's membership and conversation
+        const group = await tx.group.findUnique({
+          where: {
+            id: groupId,
+          },
+          include: {
+            members: {
+              where: {
+                userId: currentUserId,
+              },
+            },
+            conversation: true,
+          },
+        });
+
+        if (!group) {
+          this.logger.log('Group not found');
+          throw new BadRequestException('Group not found');
+        }
+
+        // Verify current user is a member and has admin privileges
+        const currentUserMembership = group.members.find(
+          (m) => m.userId === currentUserId,
+        );
+
+        if (!currentUserMembership) {
+          this.logger.warn(
+            `User ${currentUserId} is not a member of group ${groupId}`,
+          );
+          throw new BadRequestException('Group not found');
+        }
+
+        if (currentUserMembership.role !== GROUP_MEMBERSHIP.ADMIN) {
+          this.logger.debug(
+            `User ${currentUserId} does not have permission to update group ${groupId}`,
+          );
+          throw new ForbiddenException('Insufficient permissions');
+        }
+
+        // Build the update data object with only provided fields
+        const updateData: {
+          name?: string;
+          logo?: string;
+          description?: string;
+        } = {};
+        if (input.name !== undefined) updateData.name = input.name;
+        if (input.logo !== undefined) updateData.logo = input.logo;
+        if (input.description !== undefined)
+          updateData.description = input.description;
+
+        // Update the group
+        const updatedGroup = await tx.group.update({
+          where: {
+            id: groupId,
+          },
+          data: updateData,
+        });
+
+        // Sync conversation name if group name was updated
+        if (input.name !== undefined && group.conversation) {
+          await tx.conversation.update({
+            where: {
+              id: group.conversation.id,
+            },
+            data: {
+              name: input.name,
+            },
+          });
+
+          this.logger.log(
+            `Synced conversation ${group.conversation.id} name to "${input.name}"`,
+          );
+        }
+
+        this.logger.log(`Group ${groupId} updated by ${currentUserId}`);
+
+        return {
+          group: updatedGroup,
+        };
+      });
+    } catch (e) {
+      this.logger.error('Failed to update group due to an error');
+      this.logger.error(e);
+      throw e;
+    }
+  }
 }
