@@ -1,0 +1,6 @@
+{
+  "env": {
+    "NODE_OPTIONS": "--experimental-require-module",
+    "VERCEL_USE_BYTECODE_CACHING": "0"
+  }
+}
