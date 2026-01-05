@@ -25,6 +25,7 @@ model User {
   participants  Participant[]
   groupMembers  GroupMember[]
   sentMessages  Message[]
+  media         Media[]
 
   @@unique([email])
   @@map("user")
@@ -154,6 +155,12 @@ enum GROUP_MEMBERSHIP {
   MEMBER
 }
 
+// Tracks the upload lifecycle status
+enum MediaStatus {
+  PENDING // Upload URL generated, awaiting file upload confirmation
+  CONFIRMED // Upload confirmed by client, file is active
+}
+
 model GroupMember {
   id     String @id @default(cuid())
   userId String
@@ -211,4 +218,28 @@ model Message {
   @@index([senderId])
   @@index([timestamp])
   @@map("message")
+}
+
+model Media {
+  id       String @id @default(cuid())
+  key      String @unique // R2 object key (path in bucket)
+  filename String // Original filename
+  mimeType String @map("mime_type") // Content-Type
+  size     Int? // File size in bytes (null until confirmed)
+
+  // Ownership
+  uploaderId String @map("uploader_id")
+  uploader   User   @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  // Lifecycle management
+  status      MediaStatus @default(PENDING)
+  expiresAt   DateTime    @map("expires_at") // Auto-delete deadline for PENDING uploads
+  confirmedAt DateTime?   @map("confirmed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, expiresAt]) // For cleanup job queries
+  @@index([uploaderId])
+  @@map("media")
 }

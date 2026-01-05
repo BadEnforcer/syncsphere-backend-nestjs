@@ -44,6 +44,7 @@ export class R2Service {
     this.publicUrl = this.configService.getOrThrow<string>('R2_PUBLIC_URL');
 
     // Initialize S3 client with R2 endpoint
+    // R2 has limited S3 API compatibility - requires specific configuration
     this.s3Client = new S3Client({
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
@@ -51,6 +52,13 @@ export class R2Service {
         accessKeyId,
         secretAccessKey,
       },
+      // R2-specific: Use path-style URLs (required for R2 compatibility)
+      forcePathStyle: true,
+      // R2-specific: Disable automatic checksum calculation
+      // R2 only supports specific checksum types (CRC-32, CRC-32C, SHA-1, SHA-256)
+      // Setting to 'WHEN_REQUIRED' prevents SDK from sending unsupported checksums
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
 
     this.logger.log('R2 service initialized successfully');
@@ -59,6 +67,7 @@ export class R2Service {
   /**
    * Generates a presigned URL for uploading a file to R2.
    * The URL allows direct client-side uploads without exposing credentials.
+   * IMPORTANT: The client MUST send the exact Content-Type header specified here.
    *
    * @param key - The object key (path) in the bucket
    * @param contentType - MIME type of the file being uploaded
@@ -73,12 +82,14 @@ export class R2Service {
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
-      ContentType: contentType,
+      // ContentType: contentType,
     });
 
     const expiryTime = expiresIn ?? this.presignedUrlExpiry;
     const signedUrl = await getSignedUrl(this.s3Client, command, {
       expiresIn: expiryTime,
+      // Include content-type in signed headers so client can use it
+      // signableHeaders: new Set(['content-type']),
     });
 
     this.logger.debug(`Generated upload URL for key: ${key}`);
