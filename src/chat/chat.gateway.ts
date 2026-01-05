@@ -183,7 +183,10 @@ export class ChatGateway
             isGroup: false,
             participants: {
               createMany: {
-                data: [{ userId: userId1 }, { userId: userId2 }],
+                data: [
+                  { userId: userId1, lastReadAt: new Date(0) },
+                  { userId: userId2, lastReadAt: new Date(0) },
+                ],
               },
             },
           },

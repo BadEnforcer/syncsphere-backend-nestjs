@@ -74,6 +74,39 @@ export class UserController {
   }
 
   /**
+   * Returns only conversations with unread messages for the current user.
+   * Sorted by most recent message first.
+   */
+  @Get('/conversations/unread')
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description:
+      'Maximum number of conversations to return (default: 50, max: 100)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of conversations to skip for pagination (default: 0)',
+  })
+  @ApiOkResponse({
+    description: 'List of unread conversations with metadata',
+    type: GetConversationsResponse,
+  })
+  async getUnreadUserConversations(
+    @Query() query: GetConversationsQueryDto,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.userService.getUnreadUserConversations(
+      currentUser.user.id,
+      query.limit,
+      query.offset,
+    );
+  }
+
+  /**
    * Returns the online/offline status of all organization members.
    * This endpoint is cached for 5 seconds to reduce load on Redis.
    * Respects user invisibility - invisible users are shown as 'offline'.

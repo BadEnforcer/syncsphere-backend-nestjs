@@ -85,6 +85,7 @@ export class GroupService {
             id: v7(),
             userId: userId,
             conversationId: conversationId,
+            lastReadAt: new Date(0),
           })),
         });
 
@@ -200,6 +201,7 @@ export class GroupService {
               id: v7(),
               userId: userId,
               conversationId: group.conversation!.id,
+              lastReadAt: new Date(0),
             })),
           });
 
