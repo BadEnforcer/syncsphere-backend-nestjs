@@ -1,6 +1,4 @@
 {
-  "env": {
-    "NODE_OPTIONS": "--experimental-require-module",
-    "VERCEL_USE_BYTECODE_CACHING": "0"
-  }
+  "buildCommand": "pnpm dlx exec prisma build && pnpm run build",
+  "installCommand": "pnpm install"
 }
