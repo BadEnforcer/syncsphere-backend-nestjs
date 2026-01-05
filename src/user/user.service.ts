@@ -297,4 +297,130 @@ export class UserService {
       throw error;
     }
   }
+
+  /**
+   * Retrieves all organization members with pagination and optional fuzzy search.
+   * Excludes banned users. Returns basic member info (id, name, email, image, createdAt).
+   * Fuzzy search matches against name, email, or id (case-insensitive).
+   */
+  async getAllMembers(limit: number = 20, offset: number = 0, search?: string) {
+    try {
+      this.logger.log(
+        `Fetching members with limit=${limit}, offset=${offset}, search=${search ?? 'none'}`,
+      );
+
+      // Build the where clause with banned users excluded
+      const whereClause = {
+        banned: { not: true },
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { email: { contains: search, mode: 'insensitive' as const } },
+            { id: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }),
+      };
+
+      // Execute count and find in parallel for efficiency
+      const [total, members] = await Promise.all([
+        this.prisma.user.count({ where: whereClause }),
+        this.prisma.user.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            createdAt: true,
+          },
+          skip: offset,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const hasMore = offset + members.length < total;
+
+      this.logger.log(`Fetched ${members.length} members (total: ${total})`);
+
+      return {
+        data: members,
+        total,
+        hasMore,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch members due to an error');
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves all users (including banned) with full details for admin use.
+   * Returns complete user info including role, ban details, invisibility, timestamps.
+   * Fuzzy search matches against name, email, or id (case-insensitive).
+   */
+  async getAllMembersAdmin(
+    limit: number = 20,
+    offset: number = 0,
+    search?: string,
+  ) {
+    try {
+      this.logger.log(
+        `Admin fetching all members with limit=${limit}, offset=${offset}, search=${search ?? 'none'}`,
+      );
+
+      // Build the where clause (no banned filter for admin)
+      const whereClause = search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+              { id: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {};
+
+      // Execute count and find in parallel for efficiency
+      const [total, members] = await Promise.all([
+        this.prisma.user.count({ where: whereClause }),
+        this.prisma.user.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            role: true,
+            banned: true,
+            banReason: true,
+            banExpires: true,
+            invisible: true,
+            lastSeenAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          skip: offset,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+
+      const hasMore = offset + members.length < total;
+
+      this.logger.log(
+        `Admin fetched ${members.length} members (total: ${total})`,
+      );
+
+      return {
+        data: members,
+        total,
+        hasMore,
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch members (admin) due to an error');
+      this.logger.error(error);
+      throw error;
+    }
+  }
 }

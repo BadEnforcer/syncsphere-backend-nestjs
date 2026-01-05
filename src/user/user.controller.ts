@@ -12,7 +12,11 @@ import {
   UpdateInvisibilityDto,
   GetConversationsQueryDto,
   GetConversationsResponse,
+  GetMembersQueryDto,
+  GetMembersResponse,
+  GetAdminMembersResponse,
 } from './user.dto';
+import { Roles } from '@thallesp/nestjs-better-auth';
 
 /**
  * Controller for user-related operations.
@@ -81,6 +85,78 @@ export class UserController {
     return this.userService.updateInvisibility(
       currentUser.user.id,
       dto.invisible,
+    );
+  }
+
+  /**
+   * Returns all organization members with pagination and optional search.
+   * Excludes banned users. Supports fuzzy search on name, email, and id.
+   */
+  @Get('/members')
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of members to return (default: 20, max: 100)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of members to skip for pagination (default: 0)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Fuzzy search on name, email, or id',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of organization members',
+    type: GetMembersResponse,
+  })
+  async getAllMembers(@Query() query: GetMembersQueryDto) {
+    return this.userService.getAllMembers(
+      query.limit,
+      query.offset,
+      query.search,
+    );
+  }
+
+  /**
+   * Admin-only endpoint: Returns all users with full details.
+   * Includes banned users, roles, ban info, timestamps, etc.
+   * Supports fuzzy search on name, email, and id.
+   */
+  @Get('/admin/members')
+  @Roles(['admin'])
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Maximum number of members to return (default: 20, max: 100)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of members to skip for pagination (default: 0)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Fuzzy search on name, email, or id',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of all users with full details (admin only)',
+    type: GetAdminMembersResponse,
+  })
+  async getAllMembersAdmin(@Query() query: GetMembersQueryDto) {
+    return this.userService.getAllMembersAdmin(
+      query.limit,
+      query.offset,
+      query.search,
     );
   }
 }

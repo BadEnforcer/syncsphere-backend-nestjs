@@ -136,3 +136,81 @@ export class GetConversationsResponse {
   })
   conversations: ConversationResponse[];
 }
+
+// Schema for querying members with pagination and fuzzy search
+export const GetMembersQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  search: z.string().optional(),
+});
+
+export class GetMembersQueryDto extends createZodDto(GetMembersQuerySchema) {}
+
+// Swagger response class for basic member info (public endpoint)
+export class MemberResponse {
+  @ApiProperty({ description: 'User ID' })
+  id: string;
+
+  @ApiProperty({ description: 'User name' })
+  name: string;
+
+  @ApiProperty({ description: 'User email' })
+  email: string;
+
+  @ApiProperty({ description: 'User profile image URL', nullable: true })
+  image: string | null;
+
+  @ApiProperty({ description: 'Account creation timestamp' })
+  createdAt: Date;
+}
+
+// Swagger response class for admin member info (includes ban info, role, etc.)
+export class AdminMemberResponse extends MemberResponse {
+  @ApiProperty({ description: 'User role', nullable: true })
+  role: string | null;
+
+  @ApiProperty({ description: 'Whether user is banned', nullable: true })
+  banned: boolean | null;
+
+  @ApiProperty({ description: 'Reason for ban', nullable: true })
+  banReason: string | null;
+
+  @ApiProperty({ description: 'Ban expiration timestamp', nullable: true })
+  banExpires: Date | null;
+
+  @ApiProperty({ description: 'Whether user is invisible' })
+  invisible: boolean;
+
+  @ApiProperty({ description: 'Last seen timestamp', nullable: true })
+  lastSeenAt: Date | null;
+
+  @ApiProperty({ description: 'Last update timestamp' })
+  updatedAt: Date;
+}
+
+// Paginated response wrapper for members list
+export class GetMembersResponse {
+  @ApiProperty({ description: 'List of members', type: [MemberResponse] })
+  data: MemberResponse[];
+
+  @ApiProperty({ description: 'Total count of members matching query' })
+  total: number;
+
+  @ApiProperty({ description: 'Whether more results are available' })
+  hasMore: boolean;
+}
+
+// Paginated response wrapper for admin members list
+export class GetAdminMembersResponse {
+  @ApiProperty({
+    description: 'List of members with full details',
+    type: [AdminMemberResponse],
+  })
+  data: AdminMemberResponse[];
+
+  @ApiProperty({ description: 'Total count of members matching query' })
+  total: number;
+
+  @ApiProperty({ description: 'Whether more results are available' })
+  hasMore: boolean;
+}
