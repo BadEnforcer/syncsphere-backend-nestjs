@@ -9,6 +9,7 @@ import {
   GroupConversationDetailsResponse,
   ConversationListItemResponse,
   GetConversationsResponse,
+  MarkAsReadResponse,
 } from './conversation.dto';
 
 // Define the exact shape of conversation data included in the query
@@ -63,6 +64,62 @@ export class ConversationService {
     private readonly prisma: PrismaService,
     private readonly presenceService: PresenceService,
   ) {}
+
+  /**
+   * Marks a conversation as read by updating the participant's lastReadAt timestamp.
+   * User must be a participant in the conversation.
+   */
+  async markAsRead(
+    conversationId: string,
+    session: UserSession,
+  ): Promise<MarkAsReadResponse> {
+    try {
+      const currentUserId = session.user.id;
+
+      // Find the participant record for this user in the conversation
+      const participant = await this.prisma.participant.findUnique({
+        where: {
+          userId_conversationId: {
+            userId: currentUserId,
+            conversationId,
+          },
+        },
+      });
+
+      // Check if user is a participant
+      if (!participant) {
+        this.logger.debug(
+          `User ${currentUserId} is not a participant of conversation ${conversationId}`,
+        );
+        throw new NotFoundException('Conversation not found');
+      }
+
+      // Update lastReadAt to current timestamp
+      const now = new Date();
+      await this.prisma.participant.update({
+        where: { id: participant.id },
+        data: { lastReadAt: now },
+      });
+
+      this.logger.debug(
+        `User ${currentUserId} marked conversation ${conversationId} as read`,
+      );
+
+      return {
+        success: true,
+        lastReadAt: now,
+      };
+    } catch (e) {
+      if (e instanceof NotFoundException) {
+        throw e;
+      }
+      this.logger.error(
+        `Failed to mark conversation ${conversationId} as read`,
+      );
+      this.logger.error(e);
+      throw e;
+    }
+  }
 
   /**
    * Retrieves all conversations for a user with pagination.

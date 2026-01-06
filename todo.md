@@ -5,7 +5,7 @@
 ### Message History APIs
 - [ ] `GET /conversations/:id/messages` - Paginated message history
 - [x] `GET /conversations/:id` - Get single conversation details
-- [ ] Mark conversation as read API - Update `lastReadAt` for participant
+- [x] Mark conversation as read API - Update `lastReadAt` for participant
 
 ### Typing Indicators (WebSocket)
 - [x] `typing_start` event

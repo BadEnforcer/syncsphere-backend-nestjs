@@ -266,3 +266,16 @@ export class GetConversationsResponse {
   })
   conversations: ConversationListItemResponse[];
 }
+
+// ============== Mark as Read Response ==============
+
+/**
+ * Response for PATCH /conversation/:conversationId/read endpoint.
+ */
+export class MarkAsReadResponse {
+  @ApiProperty({ description: 'Whether the operation was successful' })
+  success: boolean;
+
+  @ApiProperty({ description: 'Updated lastReadAt timestamp' })
+  lastReadAt: Date;
+}
