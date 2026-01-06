@@ -23,6 +23,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from 'src/auth';
 import z from 'zod';
 import { PresenceService } from './presence/presence.service';
+import { CloudMessagingService } from 'src/firebase/cloud-messaging.service';
 
 @UseGuards(nestjsBetterAuth.AuthGuard)
 @WebSocketGateway()
@@ -36,6 +37,7 @@ export class ChatGateway
   constructor(
     private readonly prisma: PrismaService,
     private readonly presenceService: PresenceService,
+    private readonly cloudMessagingService: CloudMessagingService, // injected
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
@@ -249,7 +251,12 @@ export class ChatGateway
           .emit('message', parsedMesage.data);
       });
 
-      // TODO: in future, send notifications too
+      // Send notification to other participants
+      await this.sendNewMessageNotification(
+        conversation,
+        session.user,
+        parsedDBMessage.data,
+      );
     } catch (e) {
       this.logger.error('Failed to handle send-message ws event');
       this.logger.error(e);
@@ -303,7 +310,7 @@ export class ChatGateway
       });
     } else if (action === MessageAction.DELETE) {
       // Soft delete by setting deletedAt timestamp
-      await this.prisma.message.update({
+      const deletedMessage = await this.prisma.message.update({
         where: {
           id: incomingMessage.id,
         },
@@ -311,7 +318,15 @@ export class ChatGateway
           deletedAt: new Date(),
           action: MessageAction.DELETE,
         },
+        include: { conversation: { include: { participants: true } } },
       });
+
+      // Send silent notification to remove message
+      await this.sendDeletedMessageNotification(
+        deletedMessage.conversation,
+        deletedMessage.senderId,
+        incomingMessage.id,
+      );
     }
   }
 
@@ -348,5 +363,73 @@ export class ChatGateway
 
     // Both parts must be non-empty and sorted alphabetically
     return userId1.length > 0 && userId2.length > 0 && userId1 < userId2;
+  }
+
+  private async getRecipientTokens(recipientIds: string[]): Promise<string[]> {
+    if (recipientIds.length === 0) return [];
+
+    const sessions = await this.prisma.session.findMany({
+      where: {
+        userId: { in: recipientIds },
+        fcmToken: { not: null },
+      },
+      select: { fcmToken: true },
+    });
+
+    return sessions
+      .map((s) => s.fcmToken) // type cast due to eslint error
+      .filter((t): t is string => !!t && t.length > 0);
+  }
+
+  private async sendNewMessageNotification(
+    conversation: Prisma.ConversationGetPayload<{
+      include: { participants: true };
+    }>,
+    sender: { id: string; name: string | null },
+    message: z.infer<typeof CreateMessageSchema>,
+  ) {
+    const recipientIds = conversation.participants
+      .filter((p) => p.userId !== sender.id)
+      .map((p) => p.userId);
+
+    const tokens = await this.getRecipientTokens(recipientIds);
+    if (tokens.length === 0) return;
+
+    const title = sender.name ?? 'New Message';
+    const body =
+      message.contentType === 'TEXT'
+        ? message.message || 'Sent a message'
+        : `Sent a ${message.contentType.toLowerCase()}`;
+
+    await this.cloudMessagingService.sendNotification(
+      tokens,
+      { title, body },
+      {
+        type: 'NEW_MESSAGE',
+        conversationId: message.conversationId,
+        messageId: message.id,
+      },
+    );
+  }
+
+  private async sendDeletedMessageNotification(
+    conversation: Prisma.ConversationGetPayload<{
+      include: { participants: true };
+    }>,
+    senderId: string,
+    messageId: string,
+  ) {
+    const recipientIds = conversation.participants
+      .filter((p) => p.userId !== senderId)
+      .map((p) => p.userId);
+
+    const tokens = await this.getRecipientTokens(recipientIds);
+    if (tokens.length === 0) return;
+
+    await this.cloudMessagingService.sendSilentNotification(tokens, {
+      type: 'MESSAGE_DELETED',
+      messageId,
+      conversationId: conversation.id,
+    });
   }
 }

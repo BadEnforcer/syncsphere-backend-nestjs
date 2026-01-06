@@ -16,6 +16,7 @@ import { ChatGateway } from './chat/chat.gateway';
 import { PresenceService } from './chat/presence/presence.service';
 import { MediaModule } from './media/media.module';
 import { FirebaseModule } from 'nestjs-firebase';
+import { FirebaseModule as AppFirebaseModule } from './firebase/firebase.module';
 import * as firebaseServiceAccount from './firebase.json';
 import * as admin from 'firebase-admin';
 
@@ -48,6 +49,7 @@ import * as admin from 'firebase-admin';
       googleApplicationCredential:
         firebaseServiceAccount as admin.ServiceAccount,
     }),
+    AppFirebaseModule,
   ],
   controllers: [AppController],
   providers: [
