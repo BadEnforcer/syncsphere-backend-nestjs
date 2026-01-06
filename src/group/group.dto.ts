@@ -293,3 +293,42 @@ export class DemoteMemberResponse {
   })
   alreadyMember?: boolean;
 }
+
+// ============== Get Group Members Response Classes ==============
+
+/**
+ * Individual group member item with user details.
+ */
+export class GroupMemberItemResponse {
+  @ApiProperty({ description: 'User ID' })
+  id: string;
+
+  @ApiProperty({ description: 'User name' })
+  name: string;
+
+  @ApiProperty({ description: 'User email' })
+  email: string;
+
+  @ApiProperty({ description: 'User profile image URL', nullable: true })
+  image: string | null;
+
+  @ApiProperty({
+    description: 'Member role in the group',
+    enum: ['ADMIN', 'MEMBER'],
+  })
+  role: string;
+
+  @ApiProperty({ description: 'When the user joined the group' })
+  joinedAt: Date;
+}
+
+/**
+ * Response for GET /:groupId/members endpoint.
+ */
+export class GetGroupMembersResponse {
+  @ApiProperty({
+    description: 'List of group members with user details',
+    type: [GroupMemberItemResponse],
+  })
+  members: GroupMemberItemResponse[];
+}

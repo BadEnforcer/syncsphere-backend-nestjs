@@ -1,20 +1,134 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import * as GroupDto from './group.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { v7 } from 'uuid';
 import { type UserSession } from '@thallesp/nestjs-better-auth';
 import { GROUP_MEMBERSHIP } from '@prisma/client';
 
+// Cache TTL for group members: 5 minutes
+const GROUP_MEMBERS_CACHE_TTL_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class GroupService {
   private readonly logger = new Logger(GroupService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
+
+  /**
+   * Generates the cache key for group members.
+   */
+  private getGroupMembersCacheKey(groupId: string): string {
+    return `group:${groupId}:members`;
+  }
+
+  /**
+   * Invalidates the cached group members for a given group.
+   */
+  private async invalidateGroupMembersCache(groupId: string): Promise<void> {
+    try {
+      await this.cacheManager.del(this.getGroupMembersCacheKey(groupId));
+      this.logger.debug(`Invalidated members cache for group ${groupId}`);
+    } catch (e) {
+      this.logger.error(
+        `Failed to invalidate members cache for group ${groupId}`,
+      );
+      this.logger.error(e);
+    }
+  }
+
+  /**
+   * Retrieves all members of a group with user details.
+   * Results are cached for 5 minutes. Requires user to be a member of the group.
+   */
+  async getGroupMembers(
+    groupId: string,
+    session: UserSession,
+  ): Promise<GroupDto.GetGroupMembersResponse> {
+    try {
+      const currentUserId = session.user.id;
+      const cacheKey = this.getGroupMembersCacheKey(groupId);
+
+      // Check cache first
+      const cachedMembers =
+        await this.cacheManager.get<GroupDto.GetGroupMembersResponse>(cacheKey);
+      if (cachedMembers) {
+        this.logger.debug(`Cache hit for group members: ${groupId}`);
+        return cachedMembers;
+      }
+
+      // Fetch from database
+      const group = await this.prisma.group.findUnique({
+        where: { id: groupId },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: [
+              { role: 'asc' }, // ADMINs first
+              { createdAt: 'asc' },
+            ],
+          },
+        },
+      });
+
+      if (!group) {
+        throw new BadRequestException('Group not found');
+      }
+
+      // Verify user is a member of the group
+      const isUserMember = group.members.some(
+        (m) => m.userId === currentUserId,
+      );
+      if (!isUserMember) {
+        throw new BadRequestException('Group not found');
+      }
+
+      // Transform to response format
+      const response: GroupDto.GetGroupMembersResponse = {
+        members: group.members.map((m) => ({
+          id: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          image: m.user.image,
+          role: m.role,
+          joinedAt: m.createdAt,
+        })),
+      };
+
+      // Cache the result
+      await this.cacheManager.set(
+        cacheKey,
+        response,
+        GROUP_MEMBERS_CACHE_TTL_MS,
+      );
+      this.logger.debug(`Cached members for group ${groupId}`);
+
+      return response;
+    } catch (e) {
+      this.logger.error(`Failed to get group members for ${groupId}`);
+      this.logger.error(e);
+      throw e;
+    }
+  }
 
   /**
    * Creates a new group with an associated conversation.
@@ -116,7 +230,7 @@ export class GroupService {
     try {
       const currentUserId = session.user.id;
       // TODO: also check if all users are members of the organization
-      return this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         // Fetch group with conversation and relevant members
         const [group, verifiedUsers] = await Promise.all([
           tx.group.findUnique({
@@ -214,6 +328,11 @@ export class GroupService {
           memberships: memberships,
         };
       });
+
+      // Invalidate cache after successful transaction
+      await this.invalidateGroupMembersCache(groupId);
+
+      return result;
     } catch (e) {
       this.logger.error('Failed to add members to group due to an error');
       this.logger.error(e);
@@ -230,7 +349,7 @@ export class GroupService {
     try {
       const currentUserId = session.user.id;
 
-      return this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         // Fetch group with conversation, relevant memberships, and all admins
         const group = await tx.group.findUnique({
           where: {
@@ -324,6 +443,11 @@ export class GroupService {
           success: true,
         };
       });
+
+      // Invalidate cache after successful transaction
+      await this.invalidateGroupMembersCache(groupId);
+
+      return result;
     } catch (e) {
       this.logger.error('Failed to remove member from group due to an error');
       this.logger.error(e);

@@ -17,6 +17,7 @@ import {
   CreateMessageSchema,
   IncomingMessageSchema,
   MessageAction,
+  TypingEventSchema,
 } from './chat.message.dto';
 import { Server, Socket } from 'socket.io';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -259,6 +260,100 @@ export class ChatGateway
       );
     } catch (e) {
       this.logger.error('Failed to handle send-message ws event');
+      this.logger.error(e);
+    }
+  }
+
+  /**
+   * Handles typing_start event from clients.
+   * Validates user is a participant in the conversation and broadcasts to other members.
+   */
+  @SubscribeMessage('typing_start')
+  async handleTypingStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: unknown,
+    @nestjsBetterAuth.Session() session: nestjsBetterAuth.UserSession,
+  ) {
+    await this.handleTypingEvent(client, payload, session, true);
+  }
+
+  /**
+   * Handles typing_stop event from clients.
+   * Validates user is a participant in the conversation and broadcasts to other members.
+   */
+  @SubscribeMessage('typing_stop')
+  async handleTypingStop(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: unknown,
+    @nestjsBetterAuth.Session() session: nestjsBetterAuth.UserSession,
+  ) {
+    await this.handleTypingEvent(client, payload, session, false);
+  }
+
+  /**
+   * Shared logic for typing indicator events.
+   * Validates the payload, checks user membership, and broadcasts to participants.
+   */
+  private async handleTypingEvent(
+    client: Socket,
+    payload: unknown,
+    session: nestjsBetterAuth.UserSession,
+    isTyping: boolean,
+  ) {
+    try {
+      // Validate payload structure
+      const parsed = TypingEventSchema.safeParse(payload);
+      if (!parsed.success) {
+        this.logger.error('Failed to parse typing event payload');
+        client.emit('err', {
+          message: 'Invalid typing event payload',
+          data: payload,
+        });
+        return;
+      }
+
+      const { conversationId } = parsed.data;
+      const userId = session.user.id;
+
+      // Fetch conversation with participants
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { participants: true },
+      });
+
+      // Check if conversation exists
+      if (!conversation) {
+        client.emit('err', {
+          message: 'Conversation not found',
+          data: payload,
+        });
+        return;
+      }
+
+      // Check if user is a participant
+      const isParticipant = conversation.participants.some(
+        (p) => p.userId === userId,
+      );
+      if (!isParticipant) {
+        client.emit('err', {
+          message: 'User is not a member of this conversation',
+          data: payload,
+        });
+        return;
+      }
+
+      // Broadcast to all OTHER participants in the conversation
+      conversation.participants.forEach((participant) => {
+        if (participant.userId !== userId) {
+          this.server.to(`user:${participant.userId}`).emit('user_typing', {
+            conversationId,
+            userId,
+            isTyping,
+          });
+        }
+      });
+    } catch (e) {
+      this.logger.error('Failed to handle typing event');
       this.logger.error(e);
     }
   }

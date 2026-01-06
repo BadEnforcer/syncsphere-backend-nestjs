@@ -7,7 +7,9 @@ import {
   Delete,
   Get,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   ApiTags,
   ApiParam,
@@ -64,6 +66,25 @@ export class GroupController {
     @Session() currentUser: UserSession,
   ) {
     return this.groupService.createGroup(input, currentUser);
+  }
+
+  /**
+   * Returns all members of a group with user details.
+   * Results are cached for 5 seconds at the HTTP layer.
+   */
+  @Get('/:groupId/members')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(5000) // 5 seconds cache for HTTP response
+  @ApiParam({ name: 'groupId', description: 'ID of the group' })
+  @ApiOkResponse({
+    description: 'List of group members with user details',
+    type: GroupDto.GetGroupMembersResponse,
+  })
+  async getGroupMembers(
+    @Param('groupId') groupId: string,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.groupService.getGroupMembers(groupId, currentUser);
   }
 
   /**

@@ -269,3 +269,16 @@ export function toCreateMessage(incoming: IncomingMessage): CreateMessage {
     replyToId: incoming.replyToId ?? null,
   };
 }
+
+// ============================================================================
+// Typing Indicator Schemas
+// ============================================================================
+
+/**
+ * Schema for typing indicator event payloads (typing_start, typing_stop).
+ * Requires only the conversationId to identify where the user is typing.
+ */
+export const TypingEventSchema = z.object({
+  conversationId: z.string().min(1),
+});
+export type TypingEvent = z.infer<typeof TypingEventSchema>;
