@@ -1,26 +1,18 @@
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
-import { createClient, RedisClientType } from 'redis';
+import { Redis, RedisOptions } from 'ioredis';
 import { Logger } from '@nestjs/common';
 
 /**
  * Redis adapter for Socket.IO with automatic reconnection and error handling.
- *
- * Provides robust Redis connectivity for Socket.IO with:
- * - Automatic reconnection with exponential backoff
- * - Connection health monitoring
- * - Graceful error handling to prevent application crashes
- * - Proper cleanup on disconnection
- *
- * Errors thrown:
- * - Error if REDIS_URL environment variable is not defined
+ * Uses ioredis for robust connection management.
  */
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
   private readonly logger = new Logger(RedisIoAdapter.name);
-  private pubClient: RedisClientType;
-  private subClient: RedisClientType;
+  private pubClient: Redis;
+  private subClient: Redis;
   private isConnecting = false;
   private isClosed = false;
 
@@ -37,34 +29,32 @@ export class RedisIoAdapter extends IoAdapter {
     this.isConnecting = true;
 
     try {
-      const redisConnectionOptions = {
-        url: process.env.REDIS_URL,
-        socket: {
-          reconnectStrategy: (retries: number) => {
-            const maxReconnectDelayMs = 30000;
-            const baseDelayMs = 1000;
-            const delayMs = Math.min(
-              baseDelayMs * Math.pow(2, retries),
-              maxReconnectDelayMs,
-            );
-
-            this.logger.warn(
-              `Redis reconnecting... Attempt ${retries + 1}, waiting ${delayMs}ms`,
-            );
-
-            return delayMs;
-          },
-          connectTimeout: 10000,
+      const redisUrl = process.env.REDIS_URL;
+      const options: RedisOptions = {
+        retryStrategy: (times) => {
+          const maxDelay = 30000;
+          const delay = Math.min(times * 1000, maxDelay);
+          this.logger.warn(
+            `Redis reconnecting... Attempt ${times}, waiting ${delay}ms`,
+          );
+          return delay;
         },
+        maxRetriesPerRequest: null, // Recommended for pub/sub
+        enableReadyCheck: true,
       };
 
-      this.pubClient = createClient(redisConnectionOptions);
-      this.subClient = this.pubClient.duplicate();
+      // Create two separate connections for Pub and Sub
+      this.pubClient = new Redis(redisUrl, options);
+      this.subClient = new Redis(redisUrl, options);
 
       this.setupEventHandlers(this.pubClient, 'Pub');
       this.setupEventHandlers(this.subClient, 'Sub');
 
-      await Promise.all([this.pubClient.connect(), this.subClient.connect()]);
+      // Wait for both clients to be ready
+      await Promise.all([
+        this.waitForReady(this.pubClient),
+        this.waitForReady(this.subClient),
+      ]);
 
       this.adapterConstructor = createAdapter(this.pubClient, this.subClient);
       this.logger.log('Redis adapter connected successfully');
@@ -76,14 +66,21 @@ export class RedisIoAdapter extends IoAdapter {
     }
   }
 
+  private waitForReady(client: Redis): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (client.status === 'ready') {
+        resolve();
+        return;
+      }
+      client.once('ready', () => resolve());
+      client.once('error', (err) => reject(err));
+    });
+  }
+
   /**
    * Sets up event handlers for Redis client connection lifecycle events.
-   * Handles errors, reconnection, and connection state changes.
    */
-  private setupEventHandlers(
-    client: RedisClientType,
-    clientType: 'Pub' | 'Sub',
-  ): void {
+  private setupEventHandlers(client: Redis, clientType: 'Pub' | 'Sub'): void {
     client.on('error', (err: Error) => {
       this.logger.error(`Redis ${clientType} Client Error: ${err.message}`);
     });
@@ -100,8 +97,8 @@ export class RedisIoAdapter extends IoAdapter {
       this.logger.warn(`Redis ${clientType} Client reconnecting...`);
     });
 
-    client.on('end', () => {
-      this.logger.warn(`Redis ${clientType} Client connection ended`);
+    client.on('close', () => {
+      this.logger.warn(`Redis ${clientType} Client connection closed`);
     });
   }
 
@@ -115,11 +112,9 @@ export class RedisIoAdapter extends IoAdapter {
 
   /**
    * Gracefully closes Redis connections.
-   * Should be called during application shutdown.
    */
   async close(): Promise<void> {
     if (this.isClosed) {
-      this.logger.debug('Redis connections already closed, skipping');
       return;
     }
 
@@ -131,6 +126,9 @@ export class RedisIoAdapter extends IoAdapter {
       this.logger.log('Redis connections closed successfully');
     } catch (error) {
       this.logger.error('Error closing Redis connections', error);
+      // Force disconnect if quit fails
+      this.pubClient?.disconnect();
+      this.subClient?.disconnect();
     }
   }
 }
