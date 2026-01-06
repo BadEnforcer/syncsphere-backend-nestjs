@@ -1,3 +1,6 @@
 onlyBuiltDependencies:
+  - '@firebase/util'
   - '@nestjs/core'
+  - msgpackr-extract
+  - protobufjs
   - unrs-resolver

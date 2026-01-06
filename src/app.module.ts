@@ -15,6 +15,9 @@ import { ZodValidationPipe, ZodSerializerInterceptor } from 'nestjs-zod';
 import { ChatGateway } from './chat/chat.gateway';
 import { PresenceService } from './chat/presence/presence.service';
 import { MediaModule } from './media/media.module';
+import { FirebaseModule } from 'nestjs-firebase';
+import * as firebaseServiceAccount from './firebase.json';
+import * as admin from 'firebase-admin';
 
 @Module({
   imports: [
@@ -41,6 +44,10 @@ import { MediaModule } from './media/media.module';
     GroupModule,
     UserModule,
     MediaModule,
+    FirebaseModule.forRoot({
+      googleApplicationCredential:
+        firebaseServiceAccount as admin.ServiceAccount,
+    }),
   ],
   controllers: [AppController],
   providers: [

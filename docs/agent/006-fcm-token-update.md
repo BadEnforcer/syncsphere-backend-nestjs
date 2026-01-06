@@ -18,7 +18,7 @@ We looked at using `databaseHooks` to intercept session creation.
 *   **Pros**: centralized logic.
 *   **Cons**: Passing the `fcmToken` from the HTTP request body to the internal database hook context is not straightforward in the standard flow without hacking the request context.
 
-### 3. Separate Update Endpoint (Selected)
+### 3. Separate Update Endpoint (Implemented)
 We decided to expose a dedicated endpoint to update the session's FCM token *after* successful sign-in.
 *   **Pros**:
     *   **Simplicity**: Uses standard NestJS controller/service patterns.
@@ -39,3 +39,14 @@ We decided to expose a dedicated endpoint to update the session's FCM token *aft
 
 ### Security
 *   The endpoint extracts the `sessionId` strictly from the secure session cookie (via `better-auth`'s `@Session` decorator), ensuring users can only update their own current session.
+
+## Verification
+
+To verify the endpoint, you can use the following curl command (assuming you have a valid session cookie):
+
+```bash
+curl -X PATCH http://localhost:3000/user/session/fcm-token \
+  -H "Content-Type: application/json" \
+  -H "Cookie: better-auth.session_token=YOUR_SESSION_TOKEN" \
+  -d '{"fcmToken": "test-fcm-token"}'
+```
