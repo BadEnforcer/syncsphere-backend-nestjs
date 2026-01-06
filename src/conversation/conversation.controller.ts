@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiCookieAuth,
@@ -14,7 +14,6 @@ import {
   GroupConversationDetailsResponse,
   GetConversationsQueryDto,
   GetConversationsResponse,
-  MarkAsReadResponse,
 } from './conversation.dto';
 
 /**
@@ -93,28 +92,6 @@ export class ConversationController {
       query.limit,
       query.offset,
     );
-  }
-
-  /**
-   * Marks a conversation as read by updating the user's lastReadAt timestamp.
-   */
-  @Patch('/:conversationId/read')
-  @ApiParam({
-    name: 'conversationId',
-    description: 'ID of the conversation to mark as read',
-  })
-  @ApiOkResponse({
-    description: 'Conversation marked as read',
-    type: MarkAsReadResponse,
-  })
-  @ApiNotFoundResponse({
-    description: 'Conversation not found or user is not a participant',
-  })
-  async markAsRead(
-    @Param('conversationId') conversationId: string,
-    @Session() currentUser: UserSession,
-  ) {
-    return this.conversationService.markAsRead(conversationId, currentUser);
   }
 
   /**
