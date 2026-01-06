@@ -3,7 +3,7 @@
 ## Phase 1: Core Features
 
 ### Message History APIs
-- [ ] `GET /conversations/:id/messages` - Paginated message history
+- [x] `GET /conversations/:id/messages` - Paginated message history
 - [x] `GET /conversations/:id` - Get single conversation details
 - [x] Mark conversation as read API - Update `lastReadAt` for participant
 

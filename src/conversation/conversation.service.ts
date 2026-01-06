@@ -1,7 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PresenceService } from 'src/chat/presence/presence.service';
 import { type UserSession } from '@thallesp/nestjs-better-auth';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Prisma } from '@prisma/client';
 import {
   ConversationDetailsResponse,
@@ -9,6 +11,8 @@ import {
   GroupConversationDetailsResponse,
   ConversationListItemResponse,
   GetConversationsResponse,
+  GetMessagesResponse,
+  MessageResponse,
 } from './conversation.dto';
 
 // Define the exact shape of conversation data included in the query
@@ -62,7 +66,107 @@ export class ConversationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly presenceService: PresenceService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
+
+  /**
+   * Retrieves messages for a conversation with pagination and caching.
+   * Caches the result for 5 seconds.
+   */
+  async getMessages(
+    conversationId: string,
+    userId: string,
+    params: { limit: number; offset: number; sort: 'asc' | 'desc' },
+  ): Promise<GetMessagesResponse> {
+    try {
+      // 1. Verify participant existence
+      const participant = await this.prisma.participant.findUnique({
+        where: {
+          userId_conversationId: {
+            userId,
+            conversationId,
+          },
+        },
+      });
+
+      if (!participant) {
+        throw new NotFoundException('Conversation not found');
+      }
+
+      // 2. Cache Lookup
+      const cacheKey = `conversation:${conversationId}:messages:${params.limit}:${params.offset}:${params.sort}`;
+      const cached = await this.cacheManager.get<GetMessagesResponse>(cacheKey);
+
+      if (cached) {
+        this.logger.debug(`Cache hit for messages: ${cacheKey}`);
+        return cached;
+      }
+
+      // 3. DB Fetch
+      const messages = await this.prisma.message.findMany({
+        where: { conversationId, deletedAt: null }, // Only fetch non-deleted messages? or fetch all? Usage implies history. Let's fetch all but mark deleted.
+        // Wait, requirements usually ask for visible message history. Deleted messages usually shown as "deleted".
+        // Let's check `deletedAt` logic.
+        // Actually, let's fetch all and handle deleted in mapping
+        orderBy: { timestamp: params.sort },
+        take: params.limit,
+        skip: params.offset,
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      // Check if there are more
+      const total = await this.prisma.message.count({
+        where: { conversationId },
+      });
+      const hasMore = params.offset + params.limit < total;
+
+      // 4. Transform to DTO
+      const data: MessageResponse[] = messages.map((msg) => ({
+        id: msg.id,
+        conversationId: msg.conversationId,
+        senderId: msg.senderId,
+        sender: msg.sender,
+        contentType: msg.contentType,
+        content: msg.content,
+        message: msg.message,
+        metadata: msg.metadata,
+        timestamp: msg.timestamp,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt,
+        deletedAt: msg.deletedAt,
+        replyToId: msg.replyToId,
+        isDeleted: !!msg.deletedAt,
+      }));
+
+      const response: GetMessagesResponse = {
+        data,
+        pagination: {
+          limit: params.limit,
+          offset: params.offset,
+          total,
+          hasMore,
+        },
+      };
+
+      // 5. Cache Set (5 seconds TTL)
+      await this.cacheManager.set(cacheKey, response, 5000);
+
+      return response;
+    } catch (e) {
+      if (e instanceof NotFoundException) throw e;
+      this.logger.error(`Failed to fetch messages for ${conversationId}`);
+      this.logger.error(e);
+      throw e;
+    }
+  }
 
   /**
    * Retrieves all conversations for a user with pagination.

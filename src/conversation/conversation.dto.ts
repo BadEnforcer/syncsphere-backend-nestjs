@@ -266,3 +266,86 @@ export class GetConversationsResponse {
   })
   conversations: ConversationListItemResponse[];
 }
+
+// ============== Get Messages DTOs ==============
+
+/**
+ * Schema for getting messages with pagination and sorting.
+ */
+export const GetMessagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  sort: z.enum(['asc', 'desc']).optional().default('desc'),
+});
+
+export class GetMessagesQueryDto extends createZodDto(GetMessagesQuerySchema) {}
+
+/**
+ * Detailed message response for message history.
+ */
+export class MessageResponse {
+  @ApiProperty({ description: 'Message ID' })
+  id: string;
+
+  @ApiProperty({ description: 'Conversation ID' })
+  conversationId: string;
+
+  @ApiProperty({ description: 'Sender user ID' })
+  senderId: string;
+
+  @ApiProperty({
+    description: 'Sender details',
+    type: MessageSenderResponse,
+    nullable: true,
+  })
+  sender: MessageSenderResponse | null;
+
+  @ApiProperty({ description: 'Message content type' })
+  contentType: string;
+
+  @ApiProperty({
+    description: 'Message content (structure depends on contentType)',
+    nullable: true,
+  })
+  content: any; // Typed loosely here, but validated by Zod schemas in chat.message.dto
+
+  @ApiProperty({ description: 'Message text content', nullable: true })
+  message: string | null;
+
+  @ApiProperty({ description: 'Message metadata', nullable: true })
+  metadata: any;
+
+  @ApiProperty({ description: 'Message timestamp' })
+  timestamp: Date;
+
+  @ApiProperty({ description: 'Creation timestamp' })
+  createdAt: Date;
+
+  @ApiProperty({ description: 'Last update timestamp' })
+  updatedAt: Date;
+
+  @ApiProperty({ description: 'Deletion timestamp', nullable: true })
+  deletedAt: Date | null;
+
+  @ApiProperty({ description: 'Reply to message ID', nullable: true })
+  replyToId: string | null;
+
+  @ApiProperty({ description: 'Whether the message is deleted' })
+  isDeleted: boolean;
+}
+
+/**
+ * Response for GET /conversation/:id/messages endpoint.
+ */
+export class GetMessagesResponse {
+  @ApiProperty({ description: 'List of messages', type: [MessageResponse] })
+  data: MessageResponse[];
+
+  @ApiProperty({ description: 'Pagination metadata' })
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+  };
+}

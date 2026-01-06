@@ -14,6 +14,8 @@ import {
   GroupConversationDetailsResponse,
   GetConversationsQueryDto,
   GetConversationsResponse,
+  GetMessagesQueryDto,
+  GetMessagesResponse,
 } from './conversation.dto';
 
 /**
@@ -91,6 +93,56 @@ export class ConversationController {
       currentUser.user.id,
       query.limit,
       query.offset,
+    );
+  }
+
+  /**
+   * Returns paginated message history for a conversation.
+   * Results are cached for 5 seconds.
+   */
+  @Get('/:conversationId/messages')
+  @ApiParam({
+    name: 'conversationId',
+    description: 'ID of the conversation to retrieve messages for',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of messages to return (default: 50, max: 100)',
+  })
+  @ApiQuery({
+    name: 'offset',
+    required: false,
+    type: Number,
+    description: 'Number of messages to skip (default: 0)',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    enum: ['asc', 'desc'],
+    description: 'Sort direction by timestamp (default: desc)',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of messages',
+    type: GetMessagesResponse,
+  })
+  @ApiNotFoundResponse({
+    description: 'Conversation not found or user is not a participant',
+  })
+  async getMessages(
+    @Param('conversationId') conversationId: string,
+    @Query() query: GetMessagesQueryDto,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.conversationService.getMessages(
+      conversationId,
+      currentUser.user.id,
+      {
+        limit: query.limit,
+        offset: query.offset,
+        sort: query.sort,
+      },
     );
   }
 
