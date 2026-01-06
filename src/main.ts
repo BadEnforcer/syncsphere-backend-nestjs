@@ -24,6 +24,23 @@ async function bootstrap() {
     jsonDocumentUrl: 'docs/swagger/json',
   });
 
+  // Setup AsyncAPI documentation
+  const { AsyncApiModule, AsyncApiDocumentBuilder } = await import(
+    'nestjs-asyncapi'
+  );
+  const asyncApiConfig = new AsyncApiDocumentBuilder()
+    .setTitle('SyncSphere WebSocket API')
+    .setDescription('Real-time events for SyncSphere Chat')
+    .setVersion('1.0')
+    .setDefaultContentType('application/json')
+    .addServer('ws-server', {
+      url: 'ws://localhost:3000',
+      protocol: 'socket.io',
+    })
+    .build();
+  const asyncApiDocument = AsyncApiModule.createDocument(app, asyncApiConfig);
+  await AsyncApiModule.setup('docs/websocket', app, asyncApiDocument);
+
   // cors
   app.enableCors({ origin: '*' });
 

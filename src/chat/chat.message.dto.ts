@@ -137,7 +137,7 @@ export const MetadataSchema = z
     isEdited: z.boolean().optional(),
     isForwarded: z.boolean().optional(),
     isEphemeral: z.boolean().optional(),
-    expiresAt: z.coerce.date().optional(),
+    expiresAt: z.string().datetime().optional(),
     mentions: z.array(z.string()).optional(),
   })
   .optional();
@@ -155,7 +155,7 @@ const BaseMessageSchema = z.object({
   id: z.string().min(1),
   conversationId: z.string().min(1),
   senderId: z.string().min(1),
-  timestamp: z.coerce.date(),
+  timestamp: z.string().datetime(),
   contentType: MessageContentTypeSchema,
   content: ContentSchema,
   replyToId: z.string().optional(),
@@ -172,7 +172,7 @@ const DeleteMessageSchema = z.object({
   id: z.string().min(1),
   conversationId: z.string().min(1),
   senderId: z.string().min(1),
-  timestamp: z.coerce.date(),
+  timestamp: z.string().datetime(),
   contentType: MessageContentTypeSchema.optional(),
   content: z.unknown().optional(),
   replyToId: z.string().optional(),
@@ -258,7 +258,7 @@ export function toCreateMessage(incoming: IncomingMessage): CreateMessage {
 
   return {
     id: incoming.id,
-    timestamp: incoming.timestamp,
+    timestamp: new Date(incoming.timestamp),
     contentType: incoming.contentType ?? 'UNKNOWN',
     content: content ?? null,
     metadata: incoming.metadata ?? null,
@@ -295,3 +295,50 @@ export const MarkAsReadEventSchema = z.object({
   conversationId: z.string().min(1),
 });
 export type MarkAsReadEvent = z.infer<typeof MarkAsReadEventSchema>;
+// ============================================================================
+// DTO Classes for AsyncAPI / Swagger
+// ============================================================================
+
+import { createZodDto } from 'nestjs-zod';
+
+/**
+ * DTO for incoming/outgoing chat messages.
+ * Note: Zod unions are not fully supported by createZodDto for inheritance.
+ * Using BaseMessageSchema as the primary representation.
+ */
+export class IncomingMessageDto extends createZodDto(BaseMessageSchema) {}
+
+/**
+ * DTO for delete messages.
+ */
+export class DeleteMessageDto extends createZodDto(DeleteMessageSchema) {}
+
+/**
+ * DTO for typing indicator events.
+ */
+export class TypingEventDto extends createZodDto(TypingEventSchema) {}
+
+/**
+ * DTO for read receipt events.
+ */
+export class MarkAsReadEventDto extends createZodDto(MarkAsReadEventSchema) {}
+
+export const ConversationReadSchema = z.object({
+  conversationId: z.string(),
+  userId: z.string(),
+  readAt: z.string().datetime(),
+});
+export class ConversationReadDto extends createZodDto(ConversationReadSchema) {}
+
+export const UserTypingSchema = z.object({
+  conversationId: z.string(),
+  userId: z.string(),
+  isTyping: z.boolean(),
+});
+export class UserTypingDto extends createZodDto(UserTypingSchema) {}
+
+export const UserStatusChangeSchema = z.object({
+  userId: z.string(),
+  status: z.enum(['online', 'offline']),
+});
+export class UserStatusChangeDto extends createZodDto(UserStatusChangeSchema) {}
