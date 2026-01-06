@@ -45,7 +45,9 @@ Sent to other participants when a user reads a conversation.
 - Users can only mark conversations as read if they are participants.
 - Error events are emitted back to the sender if validation fails or conversation is not found.
 
-## Files Modified
+## Performance Optimization
 
-- `src/chat/chat.gateway.ts`: Added `mark_as_read` handler logic.
-- `src/chat/chat.message.dto.ts`: Added `MarkAsReadEventSchema`.
+For group conversations, the server attempts to fetch participants from the Redis cache (`group:{groupId}:members`) first.
+- **Cache Hit:** Uses cached member list to broadcast events (avoids DB query for participants).
+- **Cache Miss:** Falls back to database query.
+- **Update:** `lastReadAt` update is always a direct DB write using a targeted update on the `Participant` table.

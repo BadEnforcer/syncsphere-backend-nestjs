@@ -1,4 +1,6 @@
 import { Inject, Logger, UseGuards } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import {
   ConnectedSocket,
   MessageBody,
@@ -41,6 +43,7 @@ export class ChatGateway
     private readonly presenceService: PresenceService,
     private readonly cloudMessagingService: CloudMessagingService, // injected
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   afterInit(server: Server) {
@@ -384,26 +387,39 @@ export class ChatGateway
       const { conversationId } = parsed.data;
       const userId = session.user.id;
 
-      // Fetch conversation with participants
-      const conversation = await this.prisma.conversation.findUnique({
-        where: { id: conversationId },
-        include: { participants: true },
-      });
+      // Try to get participants from cache if it's a group
+      // We don't know if it's a group yet, but we can try the cache key pattern
+      const cacheKey = `group:${conversationId}:members`;
+      const cachedMembers =
+        await this.cacheManager.get<{ id: string; role: string }[]>(cacheKey);
 
-      // Check if conversation exists
-      if (!conversation) {
-        client.emit('err', {
-          message: 'Conversation not found',
-          data: payload,
+      let participants: { userId: string }[] = [];
+
+      if (cachedMembers) {
+        // Cache hit! Use cached members
+        participants = cachedMembers.map((m) => ({ userId: m.id }));
+      } else {
+        // Cache miss, fetch from DB
+        const conversation = await this.prisma.conversation.findUnique({
+          where: { id: conversationId },
+          include: { participants: true },
         });
-        return;
+
+        if (!conversation) {
+          client.emit('err', {
+            message: 'Conversation not found',
+            data: payload,
+          });
+          return;
+        }
+
+        participants = conversation.participants;
       }
-      // TODO: use cache to save time
+
       // Check if user is a participant
-      const participant = conversation.participants.find(
-        (p) => p.userId === userId,
-      );
-      if (!participant) {
+      const isParticipant = participants.some((p) => p.userId === userId);
+
+      if (!isParticipant) {
         client.emit('err', {
           message: 'User is not a member of this conversation',
           data: payload,
@@ -412,9 +428,16 @@ export class ChatGateway
       }
 
       // Update lastReadAt timestamp
+      // We need the participant ID for the update. If we used cache, we might not have it.
+      // So we do a targeted update using the compound key userId_conversationId
       const now = new Date();
       await this.prisma.participant.update({
-        where: { id: participant.id },
+        where: {
+          userId_conversationId: {
+            userId,
+            conversationId,
+          },
+        },
         data: { lastReadAt: now },
       });
 
@@ -423,7 +446,7 @@ export class ChatGateway
       );
 
       // Broadcast to all OTHER participants in the conversation
-      conversation.participants.forEach((p) => {
+      participants.forEach((p) => {
         if (p.userId !== userId) {
           this.server.to(`user:${p.userId}`).emit('conversation_read', {
             conversationId,
