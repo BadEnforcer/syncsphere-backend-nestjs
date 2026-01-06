@@ -17,6 +17,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  trustedOrigins: [
+    '*',
+    'https://syncsphere-backend-nestjs.vercel.app',
+    'flutter://',
+  ],
   session: {
     additionalFields: {
       fcmToken: {
