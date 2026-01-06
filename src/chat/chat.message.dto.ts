@@ -282,3 +282,16 @@ export const TypingEventSchema = z.object({
   conversationId: z.string().min(1),
 });
 export type TypingEvent = z.infer<typeof TypingEventSchema>;
+
+// ============================================================================
+// Read Receipt Schemas
+// ============================================================================
+
+/**
+ * Schema for mark_as_read event payload.
+ * Client sends this to mark a conversation as read.
+ */
+export const MarkAsReadEventSchema = z.object({
+  conversationId: z.string().min(1),
+});
+export type MarkAsReadEvent = z.infer<typeof MarkAsReadEventSchema>;

@@ -18,6 +18,7 @@ import {
   IncomingMessageSchema,
   MessageAction,
   TypingEventSchema,
+  MarkAsReadEventSchema,
 } from './chat.message.dto';
 import { Server, Socket } from 'socket.io';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -354,6 +355,85 @@ export class ChatGateway
       });
     } catch (e) {
       this.logger.error('Failed to handle typing event');
+      this.logger.error(e);
+    }
+  }
+
+  /**
+   * Handles mark_as_read event from clients.
+   * Updates lastReadAt for the user and broadcasts 'conversation_read' event to other participants.
+   */
+  @SubscribeMessage('mark_as_read')
+  async handleMarkAsRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: unknown,
+    @nestjsBetterAuth.Session() session: nestjsBetterAuth.UserSession,
+  ) {
+    try {
+      // Validate payload structure
+      const parsed = MarkAsReadEventSchema.safeParse(payload);
+      if (!parsed.success) {
+        this.logger.error('Failed to parse mark_as_read event payload');
+        client.emit('err', {
+          message: 'Invalid mark_as_read event payload',
+          data: payload,
+        });
+        return;
+      }
+
+      const { conversationId } = parsed.data;
+      const userId = session.user.id;
+
+      // Fetch conversation with participants
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { participants: true },
+      });
+
+      // Check if conversation exists
+      if (!conversation) {
+        client.emit('err', {
+          message: 'Conversation not found',
+          data: payload,
+        });
+        return;
+      }
+      // TODO: use cache to save time
+      // Check if user is a participant
+      const participant = conversation.participants.find(
+        (p) => p.userId === userId,
+      );
+      if (!participant) {
+        client.emit('err', {
+          message: 'User is not a member of this conversation',
+          data: payload,
+        });
+        return;
+      }
+
+      // Update lastReadAt timestamp
+      const now = new Date();
+      await this.prisma.participant.update({
+        where: { id: participant.id },
+        data: { lastReadAt: now },
+      });
+
+      this.logger.debug(
+        `User ${userId} marked conversation ${conversationId} as read`,
+      );
+
+      // Broadcast to all OTHER participants in the conversation
+      conversation.participants.forEach((p) => {
+        if (p.userId !== userId) {
+          this.server.to(`user:${p.userId}`).emit('conversation_read', {
+            conversationId,
+            userId,
+            readAt: now.toISOString(),
+          });
+        }
+      });
+    } catch (e) {
+      this.logger.error('Failed to handle mark_as_read event');
       this.logger.error(e);
     }
   }
