@@ -19,8 +19,6 @@ import { UserService } from './user.service';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   UpdateInvisibilityDto,
-  GetConversationsQueryDto,
-  GetConversationsResponse,
   GetMembersQueryDto,
   GetMembersResponse,
   GetAllUsersStatusResponse,
@@ -36,74 +34,6 @@ import {
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-
-  /**
-   * Returns all conversations for the current user.
-   * Includes both direct messages and group conversations with their last message and metadata.
-   * Excludes conversations with no messages.
-   * Sorted by most recent message first.
-   */
-  @Get('/conversations')
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description:
-      'Maximum number of conversations to return (default: 50, max: 100)',
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    type: Number,
-    description: 'Number of conversations to skip for pagination (default: 0)',
-  })
-  @ApiOkResponse({
-    description: 'List of user conversations with metadata',
-    type: GetConversationsResponse,
-  })
-  async getUserConversations(
-    @Query() query: GetConversationsQueryDto,
-    @Session() currentUser: UserSession,
-  ) {
-    return this.userService.getUserConversations(
-      currentUser.user.id,
-      query.limit,
-      query.offset,
-    );
-  }
-
-  /**
-   * Returns only conversations with unread messages for the current user.
-   * Sorted by most recent message first.
-   */
-  @Get('/conversations/unread')
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description:
-      'Maximum number of conversations to return (default: 50, max: 100)',
-  })
-  @ApiQuery({
-    name: 'offset',
-    required: false,
-    type: Number,
-    description: 'Number of conversations to skip for pagination (default: 0)',
-  })
-  @ApiOkResponse({
-    description: 'List of unread conversations with metadata',
-    type: GetConversationsResponse,
-  })
-  async getUnreadUserConversations(
-    @Query() query: GetConversationsQueryDto,
-    @Session() currentUser: UserSession,
-  ) {
-    return this.userService.getUnreadUserConversations(
-      currentUser.user.id,
-      query.limit,
-      query.offset,
-    );
-  }
 
   /**
    * Returns the online/offline status of all organization members.

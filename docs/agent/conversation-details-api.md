@@ -4,47 +4,41 @@
 
 ## Summary
 
-Created a new `ConversationModule` with `GET /conversation/:id` API to retrieve conversation details.
+Created a `ConversationModule` with APIs for conversation management.
 
-## API Response Structure
+## API Endpoints
 
-### Group Conversation
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/conversation` | List all user conversations (paginated) |
+| GET | `/conversation/unread` | List unread conversations only |
+| GET | `/conversation/:conversationId` | Get single conversation details |
+
+## Response Structures
+
+### GET /conversation and GET /conversation/unread
+Returns list of conversations with last message, unread count, and participant/group info.
+
+### GET /conversation/:conversationId
+
+**Group Conversation:**
 ```json
 {
   "id": "conversation_id",
   "type": "group",
-  "createdAt": "2026-01-06T00:00:00Z",
-  "group": {
-    "id": "group_id",
-    "name": "Group Name",
-    "logo": "https://...",
-    "description": "..."
-  },
-  "members": [
-    {
-      "id": "user_id",
-      "name": "User Name",
-      "email": "user@example.com",
-      "image": "https://...",
-      "role": "ADMIN",
-      "joinedAt": "2026-01-01T00:00:00Z"
-    }
-  ]
+  "createdAt": "...",
+  "group": { "id": "...", "name": "...", "logo": "...", "description": "..." },
+  "members": [{ "id": "...", "name": "...", "role": "ADMIN", "joinedAt": "..." }]
 }
 ```
 
-### DM Conversation
+**DM Conversation:**
 ```json
 {
   "id": "conversation_id",
   "type": "dm",
-  "createdAt": "2026-01-06T00:00:00Z",
-  "otherParticipant": {
-    "id": "user_id",
-    "name": "User Name",
-    "email": "user@example.com",
-    "image": "https://..."
-  }
+  "createdAt": "...",
+  "otherParticipant": { "id": "...", "name": "...", "email": "...", "image": "..." }
 }
 ```
 
@@ -53,7 +47,11 @@ Created a new `ConversationModule` with `GET /conversation/:id` API to retrieve 
 - User must be a participant to access conversation details
 - Non-participants receive 404 (hides existence)
 
-## Files Created
+## Refactoring Notes
+
+Routes were moved from `/user/conversations` to `/conversation` for better API organization.
+
+## Files
 
 - `src/conversation/conversation.module.ts`
 - `src/conversation/conversation.service.ts`
