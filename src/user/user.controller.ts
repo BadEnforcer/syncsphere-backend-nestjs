@@ -24,6 +24,7 @@ import {
   GetMembersQueryDto,
   GetMembersResponse,
   GetAllUsersStatusResponse,
+  UpdateFcmTokenDto,
 } from './user.dto';
 
 /**
@@ -129,6 +130,25 @@ export class UserController {
   @ApiParam({ name: 'userId', description: 'ID of the user to get status for' })
   async getUserStatus(@Param('userId') userId: string) {
     return this.userService.getUserStatus(userId);
+  }
+
+  /**
+   * Updates the FCM token for the current session.
+   * This allows push notifications to be sent to the current device/session.
+   */
+  @Patch('/session/fcm-token')
+  @ApiOkResponse({
+    description: 'FCM token updated successfully',
+  })
+  async updateFcmToken(
+    @Body() dto: UpdateFcmTokenDto,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.userService.updateFcmToken(
+      currentUser.user.id,
+      currentUser.session.token,
+      dto.fcmToken,
+    );
   }
 
   /**

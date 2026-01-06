@@ -11,6 +11,13 @@ export class UpdateInvisibilityDto extends createZodDto(
   UpdateInvisibilitySchema,
 ) {}
 
+// Schema for updating user's FCM token
+export const UpdateFcmTokenSchema = z.object({
+  fcmToken: z.string().min(1),
+});
+
+export class UpdateFcmTokenDto extends createZodDto(UpdateFcmTokenSchema) {}
+
 // Schema for getting user conversations with pagination
 export const GetConversationsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),

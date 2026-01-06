@@ -149,6 +149,37 @@ export class UserService {
   }
 
   /**
+   * Updates the FCM token for the current session.
+   * This is used to enable push notifications for the current device.
+   */
+  async updateFcmToken(userId: string, sessionToken: string, fcmToken: string) {
+    try {
+      this.logger.log(
+        `Updating FCM token for user ${userId} on session ${sessionToken.substring(0, 8)}...`,
+      );
+
+      const updatedSession = await this.prisma.session.update({
+        where: { token: sessionToken },
+        data: { fcmToken },
+        select: {
+          id: true,
+          fcmToken: true,
+        },
+      });
+
+      this.logger.log(`FCM token updated for user ${userId}`);
+
+      return updatedSession;
+    } catch (error) {
+      this.logger.error(
+        `Failed to update FCM token for user ${userId} due to an error`,
+      );
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
    * Retrieves all conversations for a user with pagination.
    * Includes last message (with summary for deleted messages), unread count,
    * and metadata (participant info for DMs, group info for group chats).

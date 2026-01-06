@@ -43,6 +43,8 @@ model Session {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   impersonatedBy String?
 
+  fcmToken String? @default("")
+
   @@unique([token])
   @@index([userId])
   @@map("session")
@@ -107,7 +109,8 @@ model Participant {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([userId, conversationId]) // A user can only be a participant once per conversation
+  // A user can only be a participant once per conversation
+  @@unique([userId, conversationId])
   @@index([conversationId])
   @@map("participant")
 }
@@ -128,6 +131,7 @@ model Group {
 }
 
 // Defines the type of content a message contains
+
 enum MessageContentType {
   TEXT
   IMAGE
@@ -144,6 +148,7 @@ enum MessageContentType {
 }
 
 // Tracks the action performed on a message (for sync/history purposes)
+
 enum MessageAction {
   INSERT
   UPDATE
@@ -156,6 +161,7 @@ enum GROUP_MEMBERSHIP {
 }
 
 // Tracks the upload lifecycle status
+
 enum MediaStatus {
   PENDING // Upload URL generated, awaiting file upload confirmation
   CONFIRMED // Upload confirmed by client, file is active
@@ -239,7 +245,8 @@ model Media {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@index([status, expiresAt]) // For cleanup job queries
+  // For cleanup job queries
+  @@index([status, expiresAt])
   @@index([uploaderId])
   @@map("media")
 }
