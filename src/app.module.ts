@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { GroupModule } from './group/group.module';
 import { UserModule } from './user/user.module';
+import { ConversationModule } from './conversation/conversation.module';
 import { ZodValidationPipe, ZodSerializerInterceptor } from 'nestjs-zod';
 import { ChatGateway } from './chat/chat.gateway';
 import { PresenceService } from './chat/presence/presence.service';
@@ -44,6 +45,7 @@ import * as admin from 'firebase-admin';
     PrismaModule,
     GroupModule,
     UserModule,
+    ConversationModule,
     MediaModule,
     FirebaseModule.forRoot({
       googleApplicationCredential:
