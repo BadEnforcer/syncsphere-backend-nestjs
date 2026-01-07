@@ -27,9 +27,9 @@ COPY . .
 RUN pnpm build
 
 # ===========================
-# Stage 2: Production
+# Stage 2: Production Dependencies
 # ===========================
-FROM node:22-alpine AS production
+FROM node:22-alpine AS deps
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -45,11 +45,24 @@ COPY prisma ./prisma/
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
 
-# Generate Prisma client in production stage
+# Generate Prisma client
 RUN pnpm dlx prisma generate
+
+# ===========================
+# Stage 3: Production (Distroless)
+# ===========================
+FROM gcr.io/distroless/nodejs22-debian12 AS production
+
+WORKDIR /app
+
+# Copy production node_modules from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Copy package.json (needed for some runtime checks)
+COPY --from=deps /app/package.json ./
 
 # Set environment to production
 ENV NODE_ENV=production
@@ -58,4 +71,4 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 # Start the application
-CMD ["node", "dist/src/main.js"]
+CMD ["dist/src/main.js"]

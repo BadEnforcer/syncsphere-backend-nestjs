@@ -21,12 +21,6 @@ import {
   MessageAction,
   TypingEventSchema,
   MarkAsReadEventSchema,
-  IncomingMessageDto,
-  TypingEventDto,
-  MarkAsReadEventDto,
-  ConversationReadDto,
-  UserTypingDto,
-  UserStatusChangeDto,
 } from './chat.message.dto';
 import { Server, Socket } from 'socket.io';
 import { fromNodeHeaders } from 'better-auth/node';
@@ -34,7 +28,6 @@ import { auth } from 'src/auth';
 import z from 'zod';
 import { PresenceService } from './presence/presence.service';
 import { CloudMessagingService } from 'src/firebase/cloud-messaging.service';
-import { AsyncApiPub, AsyncApiSub } from 'nestjs-asyncapi';
 
 @UseGuards(nestjsBetterAuth.AuthGuard)
 @WebSocketGateway()
@@ -57,13 +50,6 @@ export class ChatGateway
     this.server = server;
   }
 
-  @AsyncApiPub({
-    channel: 'user_status_change',
-    message: {
-      payload: UserStatusChangeDto,
-    },
-    description: 'Broadcasts when a user goes online',
-  })
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async handleConnection(client: Socket, ...args: any[]) {
     const headers = client.handshake.headers;
@@ -89,13 +75,6 @@ export class ChatGateway
     this.logger.log(`User connected: ${session.user.id}`);
   }
 
-  @AsyncApiPub({
-    channel: 'user_status_change',
-    message: {
-      payload: UserStatusChangeDto,
-    },
-    description: 'Broadcasts when a user goes offline',
-  })
   async handleDisconnect(client: Socket) {
     const headers = client.handshake.headers;
     const session = await auth.api.getSession({
@@ -122,20 +101,6 @@ export class ChatGateway
   }
 
   @SubscribeMessage('send_message')
-  @AsyncApiSub({
-    channel: 'send_message',
-    message: {
-      payload: IncomingMessageDto,
-    },
-    description: 'Send a new message to a conversation',
-  })
-  @AsyncApiPub({
-    channel: 'message',
-    message: {
-      payload: IncomingMessageDto,
-    },
-    description: 'Broadcasts the new message to participants',
-  })
   async handleMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: any,
@@ -308,20 +273,6 @@ export class ChatGateway
    * Validates user is a participant in the conversation and broadcasts to other members.
    */
   @SubscribeMessage('typing_start')
-  @AsyncApiSub({
-    channel: 'typing_start',
-    message: {
-      payload: TypingEventDto,
-    },
-    description: 'Notify that user started typing',
-  })
-  @AsyncApiPub({
-    channel: 'user_typing',
-    message: {
-      payload: UserTypingDto,
-    },
-    description: 'Broadcast typing status',
-  })
   async handleTypingStart(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: unknown,
@@ -335,19 +286,6 @@ export class ChatGateway
    * Validates user is a participant in the conversation and broadcasts to other members.
    */
   @SubscribeMessage('typing_stop')
-  @AsyncApiSub({
-    channel: 'typing_stop',
-    message: {
-      payload: TypingEventDto,
-    },
-    description: 'Notify that user stopped typing',
-  })
-  @AsyncApiPub({
-    channel: 'user_typing',
-    message: {
-      payload: UserTypingDto,
-    },
-  })
   async handleTypingStop(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: unknown,
@@ -429,20 +367,6 @@ export class ChatGateway
    * Updates lastReadAt for the user and broadcasts 'conversation_read' event to other participants.
    */
   @SubscribeMessage('mark_as_read')
-  @AsyncApiSub({
-    channel: 'mark_as_read',
-    message: {
-      payload: MarkAsReadEventDto,
-    },
-    description: 'Mark conversation as read',
-  })
-  @AsyncApiPub({
-    channel: 'conversation_read',
-    message: {
-      payload: ConversationReadDto,
-    },
-    description: 'Broadcast read receipt to other participants',
-  })
   async handleMarkAsRead(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: unknown,
