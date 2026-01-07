@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+.env*
+!.env.example
+.dockerignore
+Dockerfile
+.eslintrc.js
+.prettierrc
+coverage
+.nyc_output
+*.log
