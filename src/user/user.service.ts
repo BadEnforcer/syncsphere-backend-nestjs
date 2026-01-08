@@ -1,6 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PresenceService } from 'src/chat/presence/presence.service';
+import * as UserDto from './user.dto';
+import { UserSession } from '@thallesp/nestjs-better-auth';
 
 @Injectable()
 export class UserService {
@@ -93,6 +95,34 @@ export class UserService {
     } catch (error) {
       this.logger.error(
         `Failed to update invisibility for user ${userId} due to an error`,
+      );
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates a user's proflile
+   */
+  async updateProfile(data: UserDto.UpdateProfileDto, session: UserSession) {
+    try {
+      this.logger.log(`Updating profile for user ${session.user.id}`);
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: session.user.id },
+        data: { customMetadata: data.customMetadata },
+        select: {
+          id: true,
+          customMetadata: true,
+        },
+      });
+
+      this.logger.log(`Profile updated for user ${session.user.id}`);
+
+      return updatedUser;
+    } catch (error) {
+      this.logger.error(
+        `Failed to update profile for user ${session.user.id} due to an error`,
       );
       this.logger.error(error);
       throw error;

@@ -18,6 +18,13 @@ export const UpdateFcmTokenSchema = z.object({
 
 export class UpdateFcmTokenDto extends createZodDto(UpdateFcmTokenSchema) {}
 
+// Schema for updating user's profile
+export const UpdateProfileSchema = z.object({
+  customMetadata: z.object().optional(),
+});
+
+export class UpdateProfileDto extends createZodDto(UpdateProfileSchema) {}
+
 // Schema for querying members with pagination and fuzzy search
 export const GetMembersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),

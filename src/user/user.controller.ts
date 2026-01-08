@@ -23,6 +23,7 @@ import {
   GetMembersResponse,
   GetAllUsersStatusResponse,
   UpdateFcmTokenDto,
+  UpdateProfileDto,
 } from './user.dto';
 
 /**
@@ -94,6 +95,19 @@ export class UserController {
       currentUser.user.id,
       dto.invisible,
     );
+  }
+
+  /**
+   * Updates the current user
+   * New fields can be added here
+   * Does not handle fields that exist in better-auth api
+   */
+  @Patch('/me')
+  async updateProfile(
+    @Body() dto: UpdateProfileDto,
+    @Session() currentUser: UserSession,
+  ) {
+    return this.userService.updateProfile(dto, currentUser);
   }
 
   /**
