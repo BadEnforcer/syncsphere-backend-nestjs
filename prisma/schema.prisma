@@ -7,25 +7,26 @@ datasource db {
 }
 
 model User {
-  id            String        @id
-  name          String
-  email         String
-  emailVerified Boolean       @default(false)
-  image         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  role          String?
-  banned        Boolean?      @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  invisible     Boolean       @default(false) // if true, use is not marked as online
-  lastSeenAt    DateTime?
-  sessions      Session[]
-  accounts      Account[]
-  participants  Participant[]
-  groupMembers  GroupMember[]
-  sentMessages  Message[]
-  media         Media[]
+  id             String        @id
+  name           String
+  email          String
+  emailVerified  Boolean       @default(false)
+  image          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  role           String?
+  banned         Boolean?      @default(false)
+  banReason      String?
+  banExpires     DateTime?
+  invisible      Boolean       @default(false) // if true, use is not marked as online
+  lastSeenAt     DateTime?
+  customMetadata Json?         @db.JsonB
+  sessions       Session[]
+  accounts       Account[]
+  participants   Participant[]
+  groupMembers   GroupMember[]
+  sentMessages   Message[]
+  media          Media[]
 
   @@unique([email])
   @@map("user")

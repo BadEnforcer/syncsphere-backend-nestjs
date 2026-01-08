@@ -70,6 +70,11 @@ export class UserStatusResponse {
 
   @ApiProperty({ description: 'Online status', enum: ['online', 'offline'] })
   status: 'online' | 'offline';
+
+  @ApiProperty({
+    description: 'Roles of the user. A string but comma separated',
+  })
+  role: string;
 }
 
 // Response wrapper for all users status

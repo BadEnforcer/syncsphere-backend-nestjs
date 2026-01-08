@@ -204,6 +204,7 @@ export class UserService {
           name: true,
           image: true,
           invisible: true,
+          role: true,
         },
         orderBy: { name: 'asc' },
       });
