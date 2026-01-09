@@ -50,6 +50,9 @@ export class MemberResponse {
 
   @ApiProperty({ description: 'Account creation timestamp' })
   createdAt: Date;
+
+  @ApiProperty({ description: 'User role' })
+  role: string;
 }
 
 // Paginated response wrapper for members list

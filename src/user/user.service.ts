@@ -194,6 +194,7 @@ export class UserService {
             email: true,
             image: true,
             createdAt: true,
+            role: true,
           },
           skip: offset,
           take: limit,
