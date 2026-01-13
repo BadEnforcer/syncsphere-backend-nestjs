@@ -38,7 +38,7 @@ export const auth = betterAuth({
     openAPI(),
     multiSession(),
     admin({
-      adminUserIds: ['leNFRr91qu2HZWJptJ2Ijoaihp4uXk8b'],
+      adminUserIds: ['PX3rDFm2S0ClZSGBaPwWvHVUTsSDfmtn', 'j4NRLRlRHkElAYBAado73U5A0bZW1Nem'],
     }),
   ],
 });
