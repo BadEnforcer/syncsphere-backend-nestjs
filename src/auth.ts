@@ -18,9 +18,11 @@ export const auth = betterAuth({
     enabled: true,
   },
   trustedOrigins: [
-    '*',
     'https://syncsphere-backend-nestjs.vercel.app',
+    'http://localhost:3000', // Add if calling from local dev
+    'http://10.0.2.2:3000', // Android emulator localhost
     'flutter://',
+    // Add your actual app origin here
   ],
   session: {
     additionalFields: {
@@ -38,7 +40,10 @@ export const auth = betterAuth({
     openAPI(),
     multiSession(),
     admin({
-      adminUserIds: ['PX3rDFm2S0ClZSGBaPwWvHVUTsSDfmtn', 'j4NRLRlRHkElAYBAado73U5A0bZW1Nem'],
+      adminUserIds: [
+        'PX3rDFm2S0ClZSGBaPwWvHVUTsSDfmtn',
+        'j4NRLRlRHkElAYBAado73U5A0bZW1Nem',
+      ],
     }),
   ],
 });

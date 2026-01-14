@@ -1,6 +1,9 @@
 onlyBuiltDependencies:
   - '@firebase/util'
   - '@nestjs/core'
+  - '@prisma/engines'
+  - '@scarf/scarf'
   - msgpackr-extract
+  - prisma
   - protobufjs
   - unrs-resolver

@@ -25,7 +25,15 @@ async function bootstrap() {
   });
 
   // cors
-  app.enableCors({ origin: '*' });
+  app.enableCors({
+    origin: [
+      'https://syncsphere-backend-nestjs.vercel.app',
+      'https://syncsphere-backend-nestjs-2917555787.asia-south1.run.app', // Cloud Run
+      'http://localhost:3000',
+      'http://10.0.2.2:3000',
+    ],
+    credentials: true, // Important for cookies!
+  });
 
   // Register Better Auth handler for all auth routes
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
