@@ -53,6 +53,9 @@ export class MemberResponse {
 
   @ApiProperty({ description: 'User role' })
   role: string;
+
+  @ApiProperty({ description: 'User custom metadata', nullable: true })
+  customMetadata: Record<string, any> | null;
 }
 
 // Paginated response wrapper for members list

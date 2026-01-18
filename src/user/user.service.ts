@@ -195,6 +195,7 @@ export class UserService {
             image: true,
             createdAt: true,
             role: true,
+            customMetadata: true,
           },
           skip: offset,
           take: limit,
@@ -236,6 +237,7 @@ export class UserService {
           image: true,
           invisible: true,
           role: true,
+          customMetadata: true,
         },
         orderBy: { name: 'asc' },
       });
