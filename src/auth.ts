@@ -24,6 +24,14 @@ export const auth = betterAuth({
     'flutter://',
     // Add your actual app origin here
   ],
+  user: {
+    additionalFields: {
+      customMetadata: {
+        type: 'json', // Defines this as a JSON field
+        required: false,
+      },
+    },
+  },
   session: {
     additionalFields: {
       fcmToken: {
