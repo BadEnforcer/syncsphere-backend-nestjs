@@ -9,7 +9,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
     const adapter = new PrismaNeon({ connectionString: connectionString });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super({
       adapter,
       transactionOptions: {
@@ -19,7 +18,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   }
 
   async onModuleInit() {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await this.$connect();
   }
 }

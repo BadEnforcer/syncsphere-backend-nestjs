@@ -291,7 +291,7 @@ export class MessageResponse {
   conversationId: string;
 
   @ApiProperty({ description: 'Sender user ID' })
-  senderId: string;
+  senderId: string | null;
 
   @ApiProperty({
     description: 'Sender details',

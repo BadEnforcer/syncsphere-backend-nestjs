@@ -13,6 +13,15 @@ import { v7 } from 'uuid';
 import { type UserSession } from '@thallesp/nestjs-better-auth';
 import { GROUP_MEMBERSHIP } from '@prisma/client';
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  GroupCreatedEvent,
+  UserJoinedGroupEvent,
+  UserLeftGroupEvent,
+  GroupDeletedEvent,
+  MemberRoleUpdatedEvent,
+} from 'src/chat/events/chat.events';
+
 // Cache TTL for group members: 5 minutes
 const GROUP_MEMBERS_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -23,6 +32,7 @@ export class GroupService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -140,9 +150,9 @@ export class GroupService {
       this.logger.log('Creating group with data: ', input);
       // TODO: make sure user is not blocked/banned
 
-      return this.prisma.$transaction(async (tx) => {
+      const conversationId = v7();
+      const result = await this.prisma.$transaction(async (tx) => {
         const groupId = v7();
-        const conversationId = v7();
         const creatorId = session.user.id;
 
         // Create the group
@@ -211,6 +221,18 @@ export class GroupService {
           group: newGroup,
         };
       });
+
+      void this.eventEmitter.emitAsync(
+        'group.created',
+        new GroupCreatedEvent(
+          result.group.id,
+          conversationId,
+          session.user.id,
+          result.group.name,
+        ),
+      );
+
+      return result;
     } catch (err) {
       this.logger.error('Failed to create group due to an error');
       this.logger.error(err);
@@ -326,13 +348,29 @@ export class GroupService {
 
         return {
           memberships: memberships,
+          conversationId: group.conversation?.id,
         };
       });
 
       // Invalidate cache after successful transaction
       await this.invalidateGroupMembersCache(groupId);
 
-      return result;
+      // Emit events
+      if (result.memberships && result.conversationId) {
+        result.memberships.forEach((m) => {
+          void this.eventEmitter.emitAsync(
+            'group.user.joined',
+            new UserJoinedGroupEvent(
+              groupId,
+              result.conversationId!,
+              m.userId,
+              currentUserId,
+            ),
+          );
+        });
+      }
+
+      return { memberships: result.memberships };
     } catch (e) {
       this.logger.error('Failed to add members to group due to an error');
       this.logger.error(e);
@@ -441,13 +479,28 @@ export class GroupService {
 
         return {
           success: true,
+          conversationId: group.conversation?.id,
         };
       });
 
       // Invalidate cache after successful transaction
       await this.invalidateGroupMembersCache(groupId);
 
-      return result;
+      // Emit event
+      if (result.conversationId) {
+        const removedBy = userId === currentUserId ? null : currentUserId;
+        void this.eventEmitter.emitAsync(
+          'group.user.left',
+          new UserLeftGroupEvent(
+            groupId,
+            result.conversationId,
+            userId,
+            removedBy,
+          ),
+        );
+      }
+
+      return { success: result.success };
     } catch (e) {
       this.logger.error('Failed to remove member from group due to an error');
       this.logger.error(e);
@@ -470,8 +523,9 @@ export class GroupService {
       const currentUserId = session.user.id;
       const targetUserId = input.userId;
 
-      return this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         // Fetch group with relevant memberships
+
         const group = await tx.group.findUnique({
           where: {
             id: groupId,
@@ -484,6 +538,7 @@ export class GroupService {
                 },
               },
             },
+            conversation: true,
           },
         });
 
@@ -559,8 +614,24 @@ export class GroupService {
         return {
           success: true,
           alreadyAdmin: false,
+          conversationId: group.conversation?.id,
         };
       });
+
+      if (result.success && !result.alreadyAdmin && result.conversationId) {
+        void this.eventEmitter.emitAsync(
+          'group.member.updated',
+          new MemberRoleUpdatedEvent(
+            groupId,
+            result.conversationId,
+            targetUserId,
+            GROUP_MEMBERSHIP.ADMIN,
+            currentUserId,
+          ),
+        );
+      }
+
+      return { success: result.success, alreadyAdmin: result.alreadyAdmin };
     } catch (e) {
       this.logger.error(e);
       throw e;
@@ -582,7 +653,7 @@ export class GroupService {
       const currentUserId = session.user.id;
       const targetUserId = input.userId;
 
-      return this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         // Fetch group with relevant memberships
         const group = await tx.group.findUnique({
           where: {
@@ -596,6 +667,7 @@ export class GroupService {
                 },
               },
             },
+            conversation: true,
           },
         });
 
@@ -671,8 +743,24 @@ export class GroupService {
         return {
           success: true,
           alreadyMember: false,
+          conversationId: group.conversation?.id,
         };
       });
+
+      if (result.success && !result.alreadyMember && result.conversationId) {
+        void this.eventEmitter.emitAsync(
+          'group.member.updated',
+          new MemberRoleUpdatedEvent(
+            groupId,
+            result.conversationId,
+            targetUserId,
+            GROUP_MEMBERSHIP.MEMBER,
+            currentUserId,
+          ),
+        );
+      }
+
+      return { success: result.success, alreadyMember: result.alreadyMember };
     } catch (e) {
       this.logger.error(e);
       throw e;
@@ -688,7 +776,7 @@ export class GroupService {
     try {
       const currentUserId = session.user.id;
 
-      return this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         // Fetch group with the current user's membership
         const group = await tx.group.findUnique({
           where: {
@@ -741,6 +829,13 @@ export class GroupService {
           success: true,
         };
       });
+
+      void this.eventEmitter.emitAsync(
+        'group.deleted',
+        new GroupDeletedEvent(groupId, currentUserId),
+      );
+
+      return result;
     } catch (e) {
       this.logger.error('Failed to disband group due to an error');
       this.logger.error(e);
@@ -813,7 +908,11 @@ export class GroupService {
                 message: string | null;
                 contentType: string;
                 timestamp: Date;
-                sender: { id: string; name: string; image: string | null };
+                sender: {
+                  id: string | null;
+                  name: string;
+                  image: string | null;
+                };
               }>;
             })
           | null;

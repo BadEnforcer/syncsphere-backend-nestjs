@@ -28,6 +28,15 @@ import { auth } from 'src/auth';
 import z from 'zod';
 import { PresenceService } from './presence/presence.service';
 import { CloudMessagingService } from 'src/firebase/cloud-messaging.service';
+import { OnEvent } from '@nestjs/event-emitter';
+import {
+  GroupCreatedEvent,
+  UserJoinedGroupEvent,
+  UserLeftGroupEvent,
+  GroupDeletedEvent,
+  MemberRoleUpdatedEvent,
+} from './events/chat.events';
+import { v7 } from 'uuid';
 
 @UseGuards(nestjsBetterAuth.AuthGuard)
 @WebSocketGateway()
@@ -629,5 +638,205 @@ export class ChatGateway
       messageId,
       conversationId: conversation.id,
     });
+  }
+
+  /**
+   * Helper to create and send a system message to a conversation.
+   * Persists the message to the database and emits it to all participants via WebSocket.
+   */
+  private async sendSystemMessage(
+    conversationId: string,
+    text: string,
+    metadata?: Record<string, any>,
+  ) {
+    try {
+      // 1. Create the system message in DB
+      const messageId = v7();
+      const timestamp = new Date();
+      // const systemSenderId = 'system'; // We'll use a reserved ID for system messages
+
+      const messageData: Prisma.MessageCreateInput = {
+        id: messageId,
+        timestamp,
+        contentType: 'SYSTEM',
+        content: {
+          contentType: 'SYSTEM',
+          code: 'info', // generic info code
+          text,
+        },
+        metadata: metadata ?? Prisma.JsonNull,
+        message: text,
+        action: MessageAction.INSERT,
+        conversation: { connect: { id: conversationId } },
+        sender: {
+          // connectOrCreate: {
+          //   where: { id: systemSenderId },
+          //   create: {
+          //     id: systemSenderId,
+          //     name: 'System',
+          //     email: 'system@syncsphere.com',
+          //     // Add other required fields with defaults if necessary, though User model usually has defaults
+          //   },
+          // },
+        },
+      };
+
+      const createdMessage = await this.prisma.message.create({
+        data: messageData,
+        include: { conversation: { include: { participants: true } } },
+      });
+
+      // 2. Broadcast to all participants
+      createdMessage.conversation.participants.forEach((participant) => {
+        this.server.to(`user:${participant.userId}`).emit('message', {
+          ...createdMessage,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          content: createdMessage.content as any, // Cast for partial match
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          metadata: createdMessage.metadata as any,
+        });
+      });
+
+      // 3. Send Push Notification (Optional for system messages? Maybe silently?)
+      // For now, let's skip push notifs for system messages to avoid spam,
+      // or we can add it later if requested.
+    } catch (e) {
+      this.logger.error(
+        `Failed to send system message to conversation ${conversationId}`,
+      );
+      this.logger.error(e);
+    }
+  }
+
+  @OnEvent('group.created')
+  async handleGroupCreated(payload: GroupCreatedEvent) {
+    this.logger.log(`Handling group.created event for ${payload.groupId}`);
+    await this.sendSystemMessage(
+      payload.conversationId,
+      `Group created by ${payload.name}`,
+      { type: 'group_created', creatorId: payload.creatorId },
+    );
+  }
+
+  @OnEvent('group.user.joined')
+  async handleUserJoinedGroup(payload: UserJoinedGroupEvent) {
+    this.logger.log(
+      `Handling group.user.joined event for user ${payload.userId} in group ${payload.groupId}`,
+    );
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { name: true },
+      });
+      const userName = user?.name || 'Unknown User';
+
+      const addedByUser = await this.prisma.user.findUnique({
+        where: { id: payload.addedByUserId },
+        select: { name: true },
+      });
+      const addedByUserName = addedByUser?.name || 'Unknown User';
+
+      const text =
+        payload.userId === payload.addedByUserId
+          ? `${userName} joined the group`
+          : `${addedByUserName} added ${userName}`;
+
+      await this.sendSystemMessage(payload.conversationId, text, {
+        type: 'user_joined',
+        userId: payload.userId,
+        addedByUserId: payload.addedByUserId,
+      });
+    } catch (e) {
+      this.logger.error('Error handling user joined event', e);
+    }
+  }
+
+  @OnEvent('group.user.left')
+  async handleUserLeftGroup(payload: UserLeftGroupEvent) {
+    this.logger.log(
+      `Handling group.user.left event for user ${payload.userId} in group ${payload.groupId}`,
+    );
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { name: true },
+      });
+      const userName = user?.name || 'Unknown User';
+
+      let text = `${userName} left the group`;
+
+      if (
+        payload.removedByUserId &&
+        payload.removedByUserId !== payload.userId
+      ) {
+        const removedByUser = await this.prisma.user.findUnique({
+          where: { id: payload.removedByUserId },
+          select: { name: true },
+        });
+        const removedByUserName = removedByUser?.name || 'Admin';
+        text = `${removedByUserName} removed ${userName}`;
+      }
+
+      await this.sendSystemMessage(payload.conversationId, text, {
+        type: 'user_left',
+        userId: payload.userId,
+        removedByUserId: payload.removedByUserId,
+      });
+    } catch (e) {
+      this.logger.error('Error handling user left event', e);
+    }
+  }
+
+  @OnEvent('group.member.updated')
+  async handleMemberUpdated(payload: MemberRoleUpdatedEvent) {
+    this.logger.log(
+      `Handling group.member.updated event for user ${payload.userId} in group ${payload.groupId}`,
+    );
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { name: true },
+      });
+      const userName = user?.name || 'Unknown User';
+
+      let text = '';
+      if (payload.newRole === 'ADMIN') {
+        text = `${userName} is now an Admin`;
+      } else {
+        text = `${userName} is no longer an Admin`;
+      }
+
+      await this.sendSystemMessage(payload.conversationId, text, {
+        type: 'member_updated',
+        userId: payload.userId,
+        role: payload.newRole,
+      });
+    } catch (e) {
+      this.logger.error('Error handling member updated event', e);
+    }
+  }
+
+  @OnEvent('group.deleted')
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async handleGroupDeleted(payload: GroupDeletedEvent) {
+    this.logger.log(
+      `Handling group.deleted event for group ${payload.groupId}`,
+    );
+    // Since the group and conversation are deleted (cascade), we might not be able to send a message to it.
+    // Instead, we should notify connected clients that the conversation is gone so they can remove it from UI.
+
+    // We can't query participants since they might be gone.
+    // Ideally, we should have fetched them before deletion or the event payload should contain them.
+    // However, if we follow the current GroupService implementation, it deletes the group which cascades.
+    // So we can assume the data is gone.
+    // Best effort: The clients might receive an error next time they try to fetch it.
+    // Or we could try to broadcast to a room if we had 'group:groupId' rooms.
+    // Current implementation joins `user:userId`.
+
+    // For now, let's log it. Real-time handling of deletion requires fetching members before deletion in the service
+    // and passing them in the event.
+    this.logger.warn(
+      `Group ${payload.groupId} deleted. Real-time notification not fully implemented without member list.`,
+    );
   }
 }

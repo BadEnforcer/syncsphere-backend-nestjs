@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_PIPE, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -52,6 +53,7 @@ import * as admin from 'firebase-admin';
         firebaseServiceAccount as admin.ServiceAccount,
     }),
     AppFirebaseModule,
+    EventEmitterModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [

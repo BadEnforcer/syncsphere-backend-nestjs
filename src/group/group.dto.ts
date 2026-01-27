@@ -140,10 +140,10 @@ export class GroupOperationResponse {
  */
 export class LatestMessageSenderResponse {
   @ApiProperty({ description: 'Sender user ID' })
-  id: string;
+  id: string | null;
 
   @ApiProperty({ description: 'Sender name' })
-  name: string;
+  name: string | null;
 
   @ApiProperty({ description: 'Sender profile image URL', nullable: true })
   image: string | null;

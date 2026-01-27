@@ -204,8 +204,8 @@ model Message {
   action MessageAction @default(INSERT) @map("action")
 
   // Message sender
-  senderId String @map("sender_id")
-  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId String? @map("sender_id")
+  sender   User?   @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   // Conversation this message belongs to (works for both 1-1 and group chats)
   conversationId String       @map("conversation_id")
