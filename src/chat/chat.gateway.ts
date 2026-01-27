@@ -822,21 +822,19 @@ export class ChatGateway
     this.logger.log(
       `Handling group.deleted event for group ${payload.groupId}`,
     );
-    // Since the group and conversation are deleted (cascade), we might not be able to send a message to it.
-    // Instead, we should notify connected clients that the conversation is gone so they can remove it from UI.
 
-    // We can't query participants since they might be gone.
-    // Ideally, we should have fetched them before deletion or the event payload should contain them.
-    // However, if we follow the current GroupService implementation, it deletes the group which cascades.
-    // So we can assume the data is gone.
-    // Best effort: The clients might receive an error next time they try to fetch it.
-    // Or we could try to broadcast to a room if we had 'group:groupId' rooms.
-    // Current implementation joins `user:userId`.
+    // Notify all members that the group has been deleted
+    // The client should listen for this event and remove the group from the UI
+    payload.memberIds.forEach((userId) => {
+      this.server.to(`user:${userId}`).emit('group.deleted', {
+        groupId: payload.groupId,
+        groupName: payload.groupName,
+        deletedBy: payload.userId,
+      });
+    });
 
-    // For now, let's log it. Real-time handling of deletion requires fetching members before deletion in the service
-    // and passing them in the event.
-    this.logger.warn(
-      `Group ${payload.groupId} deleted. Real-time notification not fully implemented without member list.`,
+    this.logger.log(
+      `Notified ${payload.memberIds.length} members of group deletion`,
     );
   }
 }

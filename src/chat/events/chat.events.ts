@@ -31,7 +31,9 @@ export class UserLeftGroupEvent {
 export class GroupDeletedEvent {
   constructor(
     public readonly groupId: string,
+    public readonly groupName: string,
     public readonly userId: string, // Admin who deleted it
+    public readonly memberIds: string[],
   ) {}
 }
 

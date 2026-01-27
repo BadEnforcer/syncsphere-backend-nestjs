@@ -784,8 +784,9 @@ export class GroupService {
           },
           include: {
             members: {
-              where: {
-                userId: currentUserId,
+              select: {
+                userId: true,
+                role: true,
               },
             },
           },
@@ -827,15 +828,25 @@ export class GroupService {
 
         return {
           success: true,
+          deletedGroupId: groupId,
+          groupName: group.name,
+          memberIds: group.members.map((m) => m.userId),
         };
       });
 
-      void this.eventEmitter.emitAsync(
-        'group.deleted',
-        new GroupDeletedEvent(groupId, currentUserId),
-      );
+      if (result.success) {
+        void this.eventEmitter.emitAsync(
+          'group.deleted',
+          new GroupDeletedEvent(
+            result.deletedGroupId,
+            result.groupName,
+            currentUserId,
+            result.memberIds,
+          ),
+        );
+      }
 
-      return result;
+      return { success: result.success };
     } catch (e) {
       this.logger.error('Failed to disband group due to an error');
       this.logger.error(e);
